@@ -131,8 +131,8 @@ class GoogleOAuth(OAuthProvider):
 
     def __init__(self):
         super().__init__()
-        self.client_id = getattr(settings, 'GOOGLE_CLIENT_ID', '') or ""
-        self.client_secret = getattr(settings, 'GOOGLE_CLIENT_SECRET', '') or ""
+        self.client_id = settings.GOOGLE_CLIENT_ID or ""
+        self.client_secret = settings.GOOGLE_CLIENT_SECRET or ""
         self.authorize_url = "https://accounts.google.com/o/oauth2/v2/auth"
         self.token_url = "https://oauth2.googleapis.com/token"
         self.userinfo_url = "https://www.googleapis.com/oauth2/v2/userinfo"

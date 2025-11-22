@@ -75,10 +75,15 @@ class Settings(BaseSettings):
     EMBEDDINGS_MODEL: str = Field(default="all-MiniLM-L6-v2")
 
     # ===========================================
-    # GitHub
+    # OAuth Providers
     # ===========================================
+    # GitHub
     GITHUB_CLIENT_ID: Optional[str] = Field(default=None)
     GITHUB_CLIENT_SECRET: Optional[str] = Field(default=None)
+
+    # Google
+    GOOGLE_CLIENT_ID: Optional[str] = Field(default=None)
+    GOOGLE_CLIENT_SECRET: Optional[str] = Field(default=None)
 
     # ===========================================
     # Server
