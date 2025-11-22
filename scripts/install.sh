@@ -1,183 +1,117 @@
 #!/bin/bash
-
-# ============================================
-# Martin-Coder Installation Script (Native)
-# ============================================
+#
+# Martin-Coder Installation Script
+# Installs all dependencies and sets up the environment
+#
 
 set -e
 
 # Colors
-RED='\033[0;31m'
 GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+
 echo -e "${BLUE}"
-echo "============================================"
-echo "   Martin-Coder Installation Script"
-echo "============================================"
+echo "========================================================================"
+echo "              MARTIN-CODER INSTALLATION"
+echo "========================================================================"
 echo -e "${NC}"
 
-# Check OS
-OS=$(uname -s)
-echo -e "${YELLOW}Detected OS: $OS${NC}"
-
-# Check required tools
-check_command() {
-    if ! command -v $1 &> /dev/null; then
-        echo -e "${RED}Error: $1 is not installed${NC}"
-        echo "Please install $1 and try again"
-        exit 1
-    else
-        echo -e "${GREEN}✓ $1 found${NC}"
-    fi
-}
-
-echo -e "\n${BLUE}Checking requirements...${NC}"
-check_command python3
-check_command pip3
-check_command node
-check_command npm
-check_command git
-
 # Check Python version
-PYTHON_VERSION=$(python3 --version | cut -d ' ' -f 2 | cut -d '.' -f 1,2)
-if [[ $(echo "$PYTHON_VERSION < 3.11" | bc -l) -eq 1 ]]; then
-    echo -e "${RED}Error: Python 3.11+ required (found $PYTHON_VERSION)${NC}"
+echo -e "${BLUE}[1/5] Checking Python...${NC}"
+if ! command -v python3 &> /dev/null; then
+    echo -e "${RED}  Python not found!${NC}"
+    echo -e "${YELLOW}  Please install Python 3.11+${NC}"
     exit 1
 fi
-echo -e "${GREEN}✓ Python version: $PYTHON_VERSION${NC}"
 
-# Check Node version
-NODE_VERSION=$(node --version | cut -d 'v' -f 2 | cut -d '.' -f 1)
-if [[ $NODE_VERSION -lt 20 ]]; then
-    echo -e "${RED}Error: Node.js 20+ required (found v$NODE_VERSION)${NC}"
+PYVER=$(python3 --version | cut -d' ' -f2)
+PYMAJOR=$(echo $PYVER | cut -d'.' -f1)
+PYMINOR=$(echo $PYVER | cut -d'.' -f2)
+
+if [ "$PYMAJOR" -lt 3 ] || ([ "$PYMAJOR" -eq 3 ] && [ "$PYMINOR" -lt 11 ]); then
+    echo -e "${RED}  Python 3.11+ required. Found: $PYVER${NC}"
     exit 1
 fi
-echo -e "${GREEN}✓ Node.js version: $(node --version)${NC}"
+echo -e "${GREEN}  Python $PYVER - OK${NC}"
 
-# Create directories
-echo -e "\n${BLUE}Creating directories...${NC}"
-mkdir -p data/chroma
-mkdir -p logs
+# Check Node.js version
+echo -e "${BLUE}[2/5] Checking Node.js...${NC}"
+if ! command -v node &> /dev/null; then
+    echo -e "${RED}  Node.js not found!${NC}"
+    echo -e "${YELLOW}  Please install Node.js 20+${NC}"
+    exit 1
+fi
 
-# Setup Backend
-echo -e "\n${BLUE}Setting up Backend...${NC}"
-cd apps/api
+NODEVER=$(node --version | tr -d 'v')
+NODEMAJOR=$(echo $NODEVER | cut -d'.' -f1)
 
-# Create virtual environment
+if [ "$NODEMAJOR" -lt 20 ]; then
+    echo -e "${RED}  Node.js 20+ required. Found: v$NODEVER${NC}"
+    exit 1
+fi
+echo -e "${GREEN}  Node.js v$NODEVER - OK${NC}"
+
+# Create Python virtual environment
+echo -e "${BLUE}[3/5] Setting up Python environment...${NC}"
+cd "$ROOT_DIR/apps/api"
+
 if [ ! -d "venv" ]; then
-    echo "Creating Python virtual environment..."
+    echo -e "${YELLOW}  Creating virtual environment...${NC}"
     python3 -m venv venv
 fi
 
-# Activate virtual environment
 source venv/bin/activate
+echo -e "${YELLOW}  Installing Python dependencies...${NC}"
+pip install -r requirements.txt -q
+echo -e "${GREEN}  Python environment ready${NC}"
 
-# Install dependencies
-echo "Installing Python dependencies..."
-pip install --upgrade pip
-pip install -r requirements.txt
+# Install Node.js dependencies
+echo -e "${BLUE}[4/5] Installing Node.js dependencies...${NC}"
+cd "$ROOT_DIR/apps/web"
+echo -e "${YELLOW}  Running npm install...${NC}"
+npm install --silent
+echo -e "${GREEN}  Node.js dependencies installed${NC}"
 
-# Deactivate virtual environment
-deactivate
-cd ../..
+# Setup environment file
+echo -e "${BLUE}[5/5] Setting up configuration...${NC}"
+cd "$ROOT_DIR"
 
-# Setup Frontend
-echo -e "\n${BLUE}Setting up Frontend...${NC}"
-cd apps/web
-
-# Install Node dependencies
-echo "Installing Node.js dependencies..."
-npm install
-
-cd ../..
-
-# Setup CLI
-echo -e "\n${BLUE}Setting up CLI...${NC}"
-cd apps/cli
-
-# Install CLI in development mode
-echo "Installing CLI..."
-pip3 install -e .
-
-cd ../..
-
-# Copy environment file
 if [ ! -f ".env" ]; then
-    echo -e "\n${BLUE}Creating .env file...${NC}"
-    cp .env.example .env
-    echo -e "${YELLOW}Please edit .env and add your API keys${NC}"
+    if [ -f ".env.example" ]; then
+        cp ".env.example" ".env"
+        echo -e "${GREEN}  Created .env from template${NC}"
+        echo -e "${YELLOW}  Please edit .env with your API keys${NC}"
+    fi
+else
+    echo -e "${GREEN}  .env file already exists${NC}"
 fi
 
-# Create start scripts
-echo -e "\n${BLUE}Creating start scripts...${NC}"
+# Create data directories
+mkdir -p data
 
-# Backend start script
-cat > scripts/start-api.sh << 'EOF'
-#!/bin/bash
-cd "$(dirname "$0")/../apps/api"
-source venv/bin/activate
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-EOF
-chmod +x scripts/start-api.sh
-
-# Frontend start script
-cat > scripts/start-web.sh << 'EOF'
-#!/bin/bash
-cd "$(dirname "$0")/../apps/web"
-npm run dev
-EOF
-chmod +x scripts/start-web.sh
-
-# Full stack start script
-cat > scripts/start-all.sh << 'EOF'
-#!/bin/bash
-# Start all services in background
-
-echo "Starting Martin-Coder..."
-
-# Start API
-./scripts/start-api.sh &
-API_PID=$!
-
-# Wait for API to be ready
-sleep 5
-
-# Start Web
-./scripts/start-web.sh &
-WEB_PID=$!
+# Make scripts executable
+chmod +x "$SCRIPT_DIR"/*.sh
 
 echo ""
-echo "Services started:"
-echo "  API: http://localhost:8000 (PID: $API_PID)"
-echo "  Web: http://localhost:3000 (PID: $WEB_PID)"
+echo -e "${GREEN}========================================================================"
+echo -e "              INSTALLATION COMPLETE!"
+echo -e "========================================================================${NC}"
 echo ""
-echo "Press Ctrl+C to stop all services"
-
-# Handle shutdown
-trap "kill $API_PID $WEB_PID 2>/dev/null" EXIT
-
-# Wait for both processes
-wait
-EOF
-chmod +x scripts/start-all.sh
-
-echo -e "\n${GREEN}============================================${NC}"
-echo -e "${GREEN}   Installation Complete!${NC}"
-echo -e "${GREEN}============================================${NC}"
+echo -e "${GREEN}  Next steps:${NC}"
 echo ""
-echo -e "Next steps:"
-echo -e "  1. Edit ${YELLOW}.env${NC} and add your API keys"
-echo -e "  2. Start the backend: ${BLUE}./scripts/start-api.sh${NC}"
-echo -e "  3. Start the frontend: ${BLUE}./scripts/start-web.sh${NC}"
-echo -e "  4. Or start everything: ${BLUE}./scripts/start-all.sh${NC}"
+echo -e "${BLUE}  1. Edit .env with your configuration:${NC}"
+echo "     nano .env"
 echo ""
-echo -e "CLI usage:"
-echo -e "  ${BLUE}martin-coder --help${NC}"
-echo -e "  ${BLUE}martin-coder chat start${NC}"
-echo -e "  ${BLUE}martin-coder ask 'How do I create a REST API?'${NC}"
+echo -e "${BLUE}  2. Start the application:${NC}"
+echo "     ./scripts/start.sh"
 echo ""
-echo -e "Access the web UI at: ${BLUE}http://localhost:3000${NC}"
+echo -e "${BLUE}  Or run the demo:${NC}"
+echo "     ./scripts/start-demo.sh"
 echo ""
