@@ -1,8 +1,11 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import { LanguageSwitcher } from "@/components/language-switcher";
 
 export function Header() {
+  const t = useTranslations();
   const { user, logout } = useAuthStore();
 
   return (
@@ -17,11 +20,14 @@ export function Header() {
       <div className="flex items-center gap-4">
         {/* AI Provider selector */}
         <select className="bg-secondary text-secondary-foreground px-3 py-1.5 rounded-md text-sm border-0 focus:ring-2 focus:ring-primary">
-          <option value="claude">Claude</option>
-          <option value="openai">OpenAI</option>
-          <option value="lmstudio">LM Studio</option>
-          <option value="ollama">Ollama</option>
+          <option value="claude">{t("providers.anthropic")}</option>
+          <option value="openai">{t("providers.openai")}</option>
+          <option value="lmstudio">{t("providers.lmstudio")}</option>
+          <option value="ollama">{t("providers.ollama")}</option>
         </select>
+
+        {/* Language Switcher */}
+        <LanguageSwitcher />
 
         {/* User menu */}
         <div className="flex items-center gap-2">
@@ -32,7 +38,7 @@ export function Header() {
             onClick={logout}
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
-            Logout
+            {t("auth.signOut")}
           </button>
         </div>
       </div>

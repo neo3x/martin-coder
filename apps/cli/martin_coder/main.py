@@ -9,6 +9,11 @@ from typing import Optional
 
 from martin_coder import __version__
 from martin_coder.commands import chat, project, config, generate
+from martin_coder.i18n import (
+    t, init_locale, get_current_locale,
+    load_language_preference, select_language_prompt,
+    LOCALE_NAMES, LOCALES
+)
 
 app = typer.Typer(
     name="martin-coder",
@@ -26,8 +31,30 @@ app.add_typer(generate.app, name="generate", help="Generate code")
 
 def version_callback(value: bool):
     if value:
-        console.print(f"[bold blue]Martin-Coder CLI[/bold blue] version {__version__}")
+        console.print(f"[bold blue]Martin-Coder CLI[/bold blue] {t('app.version')} {__version__}")
         raise typer.Exit()
+
+
+def language_callback(value: Optional[str]):
+    if value:
+        if value in LOCALES:
+            init_locale(value)
+            from martin_coder.i18n import save_language_preference
+            save_language_preference(value)
+            console.print(f"[green]{t('language.changed', lang=LOCALE_NAMES[value])}[/green]")
+        else:
+            console.print(f"[red]Invalid language. Available: {', '.join(LOCALES)}[/red]")
+        raise typer.Exit()
+
+
+def _init_language():
+    """Initialize language from saved preference or prompt user."""
+    saved_locale = load_language_preference()
+    if saved_locale:
+        init_locale(saved_locale)
+    else:
+        # First run - prompt for language selection
+        select_language_prompt()
 
 
 @app.callback()
@@ -40,9 +67,18 @@ def main(
         is_eager=True,
         help="Show version and exit"
     ),
+    language: Optional[str] = typer.Option(
+        None,
+        "--language",
+        "--lang",
+        "-l",
+        callback=language_callback,
+        is_eager=True,
+        help="Set language (en/es)"
+    ),
 ):
     """Martin-Coder - AI-powered code generation and editing CLI"""
-    pass
+    _init_language()
 
 
 @app.command()
@@ -82,23 +118,24 @@ def status():
     from martin_coder.core.config import get_config
     from pathlib import Path
 
-    config = get_config()
+    cfg = get_config()
 
     console.print(Panel.fit(
-        f"""[bold]Martin-Coder Status[/bold]
+        f"""[bold]{t('status.title')}[/bold]
 
-[cyan]Working Directory:[/cyan] {Path.cwd()}
-[cyan]Config File:[/cyan] {config.config_path or 'Not found'}
-[cyan]Default Provider:[/cyan] {config.default_provider}
-[cyan]Default Model:[/cyan] {config.default_model}
+[cyan]{t('status.working_directory')}:[/cyan] {Path.cwd()}
+[cyan]{t('status.config_file')}:[/cyan] {cfg.config_path or t('status.not_found')}
+[cyan]{t('status.default_provider')}:[/cyan] {cfg.default_provider}
+[cyan]{t('status.default_model')}:[/cyan] {cfg.default_model}
+[cyan]{t('language.current', lang=LOCALE_NAMES[get_current_locale()])}[/cyan]
 
-[bold]Configured Providers:[/bold]
-  Claude: {'✓' if config.anthropic_api_key else '✗'}
-  OpenAI: {'✓' if config.openai_api_key else '✗'}
-  LM Studio: {'✓' if config.lmstudio_enabled else '✗'}
-  Ollama: {'✓' if config.ollama_enabled else '✗'}
+[bold]{t('status.configured_providers')}:[/bold]
+  Claude: {'✓' if cfg.anthropic_api_key else '✗'}
+  OpenAI: {'✓' if cfg.openai_api_key else '✗'}
+  LM Studio: {'✓' if cfg.lmstudio_enabled else '✗'}
+  Ollama: {'✓' if cfg.ollama_enabled else '✗'}
 """,
-        title="Status",
+        title=t('status.title'),
         border_style="blue"
     ))
 

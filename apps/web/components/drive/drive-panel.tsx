@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { api } from "@/lib/api";
 
 interface DriveFile {
@@ -20,11 +21,13 @@ interface DriveStatus {
 }
 
 export function DrivePanel() {
+  const t = useTranslations("drive");
+  const tCommon = useTranslations("common");
   const [status, setStatus] = useState<DriveStatus | null>(null);
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [currentFolder, setCurrentFolder] = useState("root");
   const [folderPath, setFolderPath] = useState<{ id: string; name: string }[]>([
-    { id: "root", name: "My Drive" },
+    { id: "root", name: t("myDrive") },
   ]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -153,10 +156,9 @@ export function DrivePanel() {
               />
             </svg>
           </div>
-          <h3 className="text-lg font-semibold">Google Drive Not Configured</h3>
+          <h3 className="text-lg font-semibold">{t("notConfigured")}</h3>
           <p className="text-muted-foreground text-sm">
-            To use Google Drive integration, configure your Google OAuth
-            credentials in the environment variables.
+            {t("notConfiguredDesc")}
           </p>
         </div>
       </div>
@@ -196,10 +198,9 @@ export function DrivePanel() {
               />
             </svg>
           </div>
-          <h3 className="text-lg font-semibold">Connect Google Drive</h3>
+          <h3 className="text-lg font-semibold">{t("connect")}</h3>
           <p className="text-muted-foreground text-sm">
-            Connect your Google Drive to sync projects, backup files, and access
-            your cloud storage directly from Martin-Coder.
+            {t("connectDesc")}
           </p>
           <button
             onClick={connectDrive}
@@ -208,7 +209,7 @@ export function DrivePanel() {
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 0C5.372 0 0 5.372 0 12s5.372 12 12 12 12-5.372 12-12S18.628 0 12 0zm5.82 16.32H6.18L3.2 11.04h5.76L6.18 6h11.64l-2.78 5.04h5.76l-2.98 5.28z" />
             </svg>
-            Connect Google Drive
+            {t("connect")}
           </button>
         </div>
       </div>
@@ -229,12 +230,12 @@ export function DrivePanel() {
               <path d="M59.9 57H27.6L13.85 80.8c1.35.8 2.9 1.2 4.5 1.2h50.45c1.6 0 3.15-.45 4.5-1.2L59.9 57z" fill="#2684FC"/>
               <path d="M73.4 26.55l-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25l16.25 28.15h26.4c0-1.55-.4-3.1-1.2-4.5l-11.7-22.1z" fill="#FFBA00"/>
             </svg>
-            Google Drive
+            {t("title")}
           </h2>
           <button
             onClick={loadFiles}
             className="p-2 hover:bg-muted rounded-lg transition-colors"
-            title="Refresh"
+            title={tCommon("refresh")}
           >
             <svg
               className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
@@ -259,14 +260,14 @@ export function DrivePanel() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && searchFiles()}
-            placeholder="Search files..."
+            placeholder={t("searchFiles")}
             className="flex-1 px-3 py-1.5 text-sm border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary"
           />
           <button
             onClick={searchFiles}
             className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-sm hover:opacity-90"
           >
-            Search
+            {tCommon("search")}
           </button>
         </div>
 
@@ -307,7 +308,7 @@ export function DrivePanel() {
           </div>
         ) : files.length === 0 ? (
           <div className="text-center text-muted-foreground py-8">
-            No files found
+            {t("noFiles")}
           </div>
         ) : (
           <div className="space-y-1">
@@ -370,7 +371,7 @@ export function DrivePanel() {
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
                       className="p-1.5 hover:bg-background rounded"
-                      title="Open in Drive"
+                      title={t("openInDrive")}
                     >
                       <svg
                         className="w-4 h-4"
