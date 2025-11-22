@@ -4,7 +4,7 @@ API Router - Main router combining all route modules
 
 from fastapi import APIRouter
 
-from app.api.endpoints import auth, users, projects, chat, ai, files, oauth, templates, plugins
+from app.api.endpoints import auth, users, projects, chat, ai, files, oauth, templates, plugins, drive
 
 api_router = APIRouter()
 
@@ -18,3 +18,4 @@ api_router.include_router(ai.router, prefix="/ai", tags=["AI"])
 api_router.include_router(files.router, prefix="/files", tags=["Files"])
 api_router.include_router(templates.router, prefix="/templates", tags=["Templates"])
 api_router.include_router(plugins.router, prefix="/plugins", tags=["Plugins"])
+api_router.include_router(drive.router, prefix="/drive", tags=["Google Drive"])
