@@ -61,6 +61,12 @@ class User(Base):
     anthropic_api_key: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     openai_api_key: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
+    # OAuth
+    oauth_provider: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    oauth_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+    oauth_access_token: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    oauth_refresh_token: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
