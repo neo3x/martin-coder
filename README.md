@@ -191,3 +191,15 @@ Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md)
 
 - [GitHub Issues](https://github.com/neo3x/martin-coder/issues)
 - [Discussions](https://github.com/neo3x/martin-coder/discussions)
+
+---
+
+## Contributors / Contribuidores
+
+**Project Maintainer / Mantenedor del Proyecto:**
+- **Francisco Ortiz** - Dev-ops Marfinex
+  - Email: francisco.ortiz@marfinex.com
+
+---
+
+*Martin-Coder Project - 2025*
