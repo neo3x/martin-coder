@@ -2,7 +2,7 @@
 API Dependencies - Common dependencies for routes
 """
 
-from typing import Optional, Generator
+from typing import AsyncGenerator, Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,7 +16,7 @@ from app.models.user import User
 security = HTTPBearer(auto_error=False)
 
 
-async def get_db() -> Generator:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """Get database session"""
     async with async_session_maker() as session:
         try:

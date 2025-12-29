@@ -2,16 +2,14 @@
 Test Configuration and Fixtures
 """
 
-import asyncio
 import pytest
 import pytest_asyncio
-from typing import AsyncGenerator, Generator
+from typing import AsyncGenerator
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
 from app.main import app
 from app.core.database import Base, get_db
-from app.core.config import settings
 from app.core.security import get_password_hash, create_access_token
 from app.models.user import User
 
@@ -27,12 +25,8 @@ test_session_maker = async_sessionmaker(
 )
 
 
-@pytest.fixture(scope="session")
-def event_loop() -> Generator:
-    """Create event loop for tests"""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+# Note: With pytest-asyncio 0.23+ and asyncio_mode=auto in pytest.ini,
+# the event_loop fixture is automatically provided and should not be overridden
 
 
 @pytest_asyncio.fixture(scope="function")
