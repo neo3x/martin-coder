@@ -3,10 +3,11 @@ Code Execution Tools
 """
 
 import os
+import re
 import asyncio
 import subprocess
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 import logging
 
 from app.core.config import settings
@@ -50,24 +51,57 @@ Commands are executed in a sandboxed environment when available."""
         )
     ]
 
-    # Commands that are not allowed
-    BLOCKED_COMMANDS = [
-        'rm -rf /',
-        'rm -rf ~',
-        'mkfs',
-        'dd if=',
-        ':(){:|:&};:',  # Fork bomb
-        'chmod -R 777 /',
-        'curl | sh',
-        'wget | sh',
+    # Commands and patterns that are not allowed
+    BLOCKED_PATTERNS: List[str] = [
+        r'rm\s+(-[rfRF]+\s+)?/',              # rm -rf / or rm /
+        r'rm\s+(-[rfRF]+\s+)?~',              # rm -rf ~ or rm ~
+        r'rm\s+(-[rfRF]+\s+)?\*',             # rm -rf * (dangerous in wrong dir)
+        r'mkfs',                               # Format filesystems
+        r'dd\s+if=',                          # Direct disk writes
+        r':\(\)\{.*:\|:.*\};:',               # Fork bomb pattern
+        r'chmod\s+-R\s+777\s+/',              # Dangerous permission changes
+        r'(curl|wget)\s+.*\|\s*(bash|sh|zsh)', # Remote code execution
+        r'>\s*/dev/sd',                        # Write to raw devices
+        r'>\s*/dev/null\s*2>&1\s*&',          # Background with hidden output (suspicious)
+        r'sudo\s+',                            # Privilege escalation
+        r'su\s+',                              # User switching
+        r'/etc/passwd',                        # Password file access
+        r'/etc/shadow',                        # Shadow file access
+        r'ssh-keygen.*-f\s+/',                # SSH key generation in system dirs
+        r'crontab',                            # Cron manipulation
+        r'shutdown|reboot|halt|poweroff',     # System control
+        r'kill\s+-9\s+-1',                    # Kill all processes
+        r'pkill\s+-9',                        # Aggressive process killing
+        r'nc\s+-[el]',                        # Netcat listeners
+        r'ncat\s+-[el]',                      # Ncat listeners
+        r'python.*-c.*import\s+os',           # Python OS module in one-liners
+        r'base64\s+-d.*\|\s*(bash|sh)',       # Encoded command execution
+        r'eval\s*\$\(',                       # Eval with command substitution
     ]
 
+    # Compiled regex patterns for efficiency
+    _compiled_patterns = None
+
+    @classmethod
+    def _get_compiled_patterns(cls):
+        """Get compiled regex patterns (cached)"""
+        if cls._compiled_patterns is None:
+            cls._compiled_patterns = [
+                re.compile(pattern, re.IGNORECASE)
+                for pattern in cls.BLOCKED_PATTERNS
+            ]
+        return cls._compiled_patterns
+
     def _is_safe_command(self, command: str) -> bool:
-        """Check if command is safe to execute"""
-        command_lower = command.lower()
-        for blocked in self.BLOCKED_COMMANDS:
-            if blocked in command_lower:
+        """Check if command is safe to execute using regex patterns"""
+        # Normalize whitespace
+        normalized = ' '.join(command.split())
+
+        for pattern in self._get_compiled_patterns():
+            if pattern.search(normalized):
+                logger.warning(f"Blocked dangerous command pattern: {pattern.pattern}")
                 return False
+
         return True
 
     async def execute(
@@ -182,10 +216,13 @@ class RunPythonTool(BaseTool):
 
     async def execute(self, code: str, timeout: int = 30) -> ToolResult:
         """Execute Python code"""
+        import tempfile
+
+        temp_file = None
+        process = None
+
         try:
             # Create a temporary file
-            import tempfile
-
             with tempfile.NamedTemporaryFile(
                 mode='w',
                 suffix='.py',
@@ -194,50 +231,61 @@ class RunPythonTool(BaseTool):
                 f.write(code)
                 temp_file = f.name
 
+            process = await asyncio.create_subprocess_exec(
+                'python3', temp_file,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=self.project_path or '.'
+            )
+
             try:
-                process = await asyncio.create_subprocess_exec(
-                    'python3', temp_file,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                    cwd=self.project_path or '.'
+                stdout, stderr = await asyncio.wait_for(
+                    process.communicate(),
+                    timeout=min(timeout, settings.SANDBOX_TIMEOUT)
                 )
-
-                try:
-                    stdout, stderr = await asyncio.wait_for(
-                        process.communicate(),
-                        timeout=min(timeout, settings.SANDBOX_TIMEOUT)
-                    )
-                except asyncio.TimeoutError:
-                    process.kill()
-                    return ToolResult(
-                        success=False,
-                        result=None,
-                        error=f"Execution timed out after {timeout} seconds"
-                    )
-
-                stdout_str = stdout.decode('utf-8', errors='replace')
-                stderr_str = stderr.decode('utf-8', errors='replace')
-
+            except asyncio.TimeoutError:
+                process.kill()
+                await process.wait()  # Ensure process is reaped
                 return ToolResult(
-                    success=process.returncode == 0,
-                    result={
-                        "stdout": stdout_str,
-                        "stderr": stderr_str,
-                        "return_code": process.returncode
-                    },
-                    error=stderr_str if process.returncode != 0 else None
+                    success=False,
+                    result=None,
+                    error=f"Execution timed out after {timeout} seconds"
                 )
 
-            finally:
-                # Clean up temp file
-                os.unlink(temp_file)
+            stdout_str = stdout.decode('utf-8', errors='replace')
+            stderr_str = stderr.decode('utf-8', errors='replace')
+
+            return ToolResult(
+                success=process.returncode == 0,
+                result={
+                    "stdout": stdout_str,
+                    "stderr": stderr_str,
+                    "return_code": process.returncode
+                },
+                error=stderr_str if process.returncode != 0 else None
+            )
 
         except Exception as e:
+            # Kill process if it's still running
+            if process and process.returncode is None:
+                try:
+                    process.kill()
+                    await process.wait()
+                except Exception:
+                    pass
             return ToolResult(
                 success=False,
                 result=None,
                 error=str(e)
             )
+
+        finally:
+            # Always clean up temp file if it was created
+            if temp_file:
+                try:
+                    os.unlink(temp_file)
+                except OSError:
+                    pass  # File may already be deleted or never created
 
 
 class InstallDependenciesTool(BaseTool):

@@ -22,9 +22,16 @@ class ConnectionManager:
         # chat_id -> set of connections
         self.chat_connections: Dict[str, Set[WebSocket]] = {}
 
-    async def connect(self, websocket: WebSocket, user_id: str):
-        """Accept new connection"""
-        await websocket.accept()
+    async def connect(self, websocket: WebSocket, user_id: str, accept: bool = True):
+        """Register a connection for a user
+
+        Args:
+            websocket: The WebSocket connection
+            user_id: The user's ID
+            accept: Whether to accept the connection (set to False if already accepted)
+        """
+        if accept:
+            await websocket.accept()
 
         if user_id not in self.active_connections:
             self.active_connections[user_id] = set()
@@ -113,10 +120,8 @@ def setup_websocket(app: FastAPI):
 
             user_id = token_data.user_id
 
-            # Register connection
-            if user_id not in manager.active_connections:
-                manager.active_connections[user_id] = set()
-            manager.active_connections[user_id].add(websocket)
+            # Register connection (already accepted, so pass accept=False)
+            await manager.connect(websocket, user_id, accept=False)
 
             # Send confirmation
             await websocket.send_json({

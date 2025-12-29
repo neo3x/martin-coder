@@ -5,12 +5,41 @@ File Operation Tools
 import os
 import asyncio
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Tuple
 import aiofiles
 import fnmatch
 import hashlib
 
 from app.services.tools.base import BaseTool, ToolParameter, ToolResult
+
+
+def validate_path(base_path: Optional[str], relative_path: str) -> Tuple[Optional[Path], Optional[str]]:
+    """
+    Validate that the resolved path is within the allowed base directory.
+    Prevents path traversal attacks via ".." or symlinks.
+
+    Returns:
+        Tuple of (resolved_path, error_message).
+        If valid, error_message is None.
+        If invalid, resolved_path is None and error_message contains the reason.
+    """
+    try:
+        if base_path:
+            base = Path(base_path).resolve()
+            full_path = (base / relative_path).resolve()
+
+            # Check if the resolved path is under the base path
+            try:
+                full_path.relative_to(base)
+            except ValueError:
+                return None, f"Path traversal not allowed: {relative_path}"
+        else:
+            full_path = Path(relative_path).resolve()
+
+        return full_path, None
+
+    except Exception as e:
+        return None, f"Invalid path: {str(e)}"
 
 
 class ReadFileTool(BaseTool):
@@ -42,11 +71,10 @@ class ReadFileTool(BaseTool):
     async def execute(self, path: str, start_line: int = 1, end_line: Optional[int] = None) -> ToolResult:
         """Read file contents"""
         try:
-            # Resolve path
-            if self.project_path:
-                full_path = Path(self.project_path) / path
-            else:
-                full_path = Path(path)
+            # Validate and resolve path (prevents path traversal)
+            full_path, error = validate_path(self.project_path, path)
+            if error:
+                return ToolResult(success=False, result=None, error=error)
 
             if not full_path.exists():
                 return ToolResult(
@@ -118,11 +146,10 @@ class WriteFileTool(BaseTool):
     async def execute(self, path: str, content: str) -> ToolResult:
         """Write content to file"""
         try:
-            # Resolve path
-            if self.project_path:
-                full_path = Path(self.project_path) / path
-            else:
-                full_path = Path(path)
+            # Validate and resolve path (prevents path traversal)
+            full_path, error = validate_path(self.project_path, path)
+            if error:
+                return ToolResult(success=False, result=None, error=error)
 
             # Create parent directories
             full_path.parent.mkdir(parents=True, exist_ok=True)
@@ -186,11 +213,10 @@ class EditFileTool(BaseTool):
     ) -> ToolResult:
         """Edit file with string replacement"""
         try:
-            # Resolve path
-            if self.project_path:
-                full_path = Path(self.project_path) / path
-            else:
-                full_path = Path(path)
+            # Validate and resolve path (prevents path traversal)
+            full_path, error = validate_path(self.project_path, path)
+            if error:
+                return ToolResult(success=False, result=None, error=error)
 
             if not full_path.exists():
                 return ToolResult(
@@ -286,11 +312,10 @@ class ListDirectoryTool(BaseTool):
     ) -> ToolResult:
         """List directory contents"""
         try:
-            # Resolve path
-            if self.project_path:
-                full_path = Path(self.project_path) / path
-            else:
-                full_path = Path(path)
+            # Validate and resolve path (prevents path traversal)
+            full_path, error = validate_path(self.project_path, path)
+            if error:
+                return ToolResult(success=False, result=None, error=error)
 
             if not full_path.exists():
                 return ToolResult(
@@ -408,11 +433,10 @@ class SearchFilesTool(BaseTool):
     ) -> ToolResult:
         """Search for files"""
         try:
-            # Resolve path
-            if self.project_path:
-                full_path = Path(self.project_path) / path
-            else:
-                full_path = Path(path)
+            # Validate and resolve path (prevents path traversal)
+            full_path, error = validate_path(self.project_path, path)
+            if error:
+                return ToolResult(success=False, result=None, error=error)
 
             if not full_path.exists():
                 return ToolResult(

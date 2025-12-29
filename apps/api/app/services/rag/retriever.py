@@ -90,26 +90,36 @@ class RAGRetriever:
         language_filter: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Search for relevant code chunks"""
-        # Build filter
+        # Build filter - ChromaDB supports $eq, $ne, $gt, $gte, $lt, $lte, $in, $nin
         where = {"project_id": self.project_id}
 
-        if file_filter:
-            where["file_path"] = {"$contains": file_filter}
+        # For file_filter, we do post-filtering since ChromaDB doesn't support $contains
+        # Only add exact match filters here
         if language_filter:
             where["language"] = language_filter
+
+        # Search with more results if we need to post-filter
+        search_limit = n_results * 3 if file_filter else n_results
 
         # Search
         results = await self.vector_store.search_by_text(
             query_text=query,
             embeddings_service=self.embeddings,
-            n_results=n_results,
+            n_results=search_limit,
             where=where if len(where) > 1 else None
         )
 
-        # Format results
+        # Format results with optional post-filtering
         formatted = []
         for i, doc in enumerate(results["documents"]):
             metadata = results["metadatas"][i] if results["metadatas"] else {}
+
+            # Apply file_filter as post-filter (substring match)
+            if file_filter:
+                file_path = metadata.get("file_path", "")
+                if file_filter.lower() not in file_path.lower():
+                    continue
+
             formatted.append({
                 "content": doc,
                 "file_path": metadata.get("file_path", ""),
@@ -120,6 +130,10 @@ class RAGRetriever:
                 "language": metadata.get("language", ""),
                 "score": 1 - results["distances"][i] if results["distances"] else 0
             })
+
+            # Stop once we have enough results
+            if len(formatted) >= n_results:
+                break
 
         return formatted
 
