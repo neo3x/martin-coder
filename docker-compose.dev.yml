@@ -1,5 +1,5 @@
-version: '3.8'
-
+# Martin-Coder Docker Compose (Development)
+# Note: 'version' is deprecated in Docker Compose v2+
 # Development configuration with hot reload
 
 services:
@@ -11,6 +11,8 @@ services:
       context: .
       dockerfile: docker/api.dev.Dockerfile
     container_name: martin-coder-api-dev
+    restart: unless-stopped
+    init: true
     ports:
       - "${API_PORT:-8000}:8000"
     environment:
@@ -46,6 +48,8 @@ services:
       context: .
       dockerfile: docker/web.dev.Dockerfile
     container_name: martin-coder-web-dev
+    restart: unless-stopped
+    init: true
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     environment:

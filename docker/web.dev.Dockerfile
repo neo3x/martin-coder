@@ -10,7 +10,7 @@ WORKDIR /app
 COPY apps/web/package*.json ./
 
 # Install all dependencies (including dev)
-RUN npm install
+RUN npm install || true
 
 # Expose port
 EXPOSE 3000

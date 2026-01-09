@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
     git \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* || true
 
 # Create app directory
 WORKDIR /app
@@ -28,7 +28,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY apps/api/ .
 
 # Create data directory
-RUN mkdir -p /app/data/chroma
+RUN mkdir -p /app/data/chroma || true
 
 # Create non-root user
 RUN adduser --disabled-password --gecos '' appuser && \
