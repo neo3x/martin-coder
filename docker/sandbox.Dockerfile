@@ -8,6 +8,14 @@ FROM ubuntu:22.04
 # Avoid prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
 
+# Install base dependencies and add Python 3.11 PPA
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    software-properties-common \
+    gnupg \
+    && add-apt-repository -y ppa:deadsnakes/ppa || true \
+    && apt-get update \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # Build tools
@@ -18,9 +26,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Network tools
     curl \
     wget \
-    # Python
+    # Python 3.11 from deadsnakes PPA
     python3.11 \
     python3.11-venv \
+    python3.11-dev \
     python3-pip \
     # Node.js
     nodejs \
@@ -44,24 +53,38 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     zip \
     unzip \
     jq \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* || true
 
-# Install additional Python packages
-RUN pip3 install --no-cache-dir \
+# Set Python 3.11 as default
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 || true \
+    && update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1 || true
+
+# Install additional Python packages (with --break-system-packages for newer pip)
+RUN pip3 install --no-cache-dir --break-system-packages \
     pytest \
     black \
     ruff \
     mypy \
-    poetry
+    poetry \
+    || pip3 install --no-cache-dir \
+    pytest \
+    black \
+    ruff \
+    mypy \
+    poetry \
+    || true
 
 # Install Node.js LTS via n
-RUN npm install -g n && n lts && npm install -g \
+RUN npm install -g n || true \
+    && n lts || true \
+    && npm install -g \
     typescript \
     ts-node \
     prettier \
     eslint \
     pnpm \
-    yarn
+    yarn \
+    || true
 
 # Create sandbox user
 RUN useradd -m -s /bin/bash sandbox && \

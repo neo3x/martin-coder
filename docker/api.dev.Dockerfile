@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
     git \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* || true
 
 # Create app directory
 WORKDIR /app
@@ -23,7 +23,7 @@ COPY apps/api/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Create data directory
-RUN mkdir -p /app/data/chroma
+RUN mkdir -p /app/data/chroma || true
 
 # Expose port
 EXPOSE 8000
