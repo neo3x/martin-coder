@@ -11,8 +11,13 @@ WORKDIR /app
 # Copy package files
 COPY apps/web/package*.json ./
 
-# Install dependencies
-RUN npm ci --omit=dev
+# Install ALL dependencies (including dev) for build
+# Use npm install if package-lock.json doesn't exist
+RUN if [ -f package-lock.json ]; then \
+        npm ci; \
+    else \
+        npm install; \
+    fi
 
 # Rebuild the source code only when needed
 FROM base AS builder

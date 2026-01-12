@@ -40,7 +40,7 @@ class Project(Base):
     # Status
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_indexed: Mapped[bool] = mapped_column(Boolean, default=False)
-    last_indexed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_indexed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Owner
     owner_id: Mapped[str] = mapped_column(
@@ -51,12 +51,12 @@ class Project(Base):
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False
@@ -116,12 +116,12 @@ class ProjectFile(Base):
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False

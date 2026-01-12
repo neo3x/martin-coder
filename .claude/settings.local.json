@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod:*)",
+      "Bash(ls:*)",
+      "Bash(npm install:*)",
+      "Bash(docker compose build:*)",
+      "Bash(./martin.sh build:*)",
+      "Bash(docker compose:*)",
+      "Bash(docker rmi:*)",
+      "Bash(curl:*)"
+    ]
+  }
+}

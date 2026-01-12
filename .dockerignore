@@ -99,10 +99,10 @@
 **/CONTRIBUTING.md
 **/.editorconfig
 **/.prettierrc*
-**/.eslintrc*
-**/tsconfig*.json
+# **/.eslintrc*  # Commented out - Next.js may need eslint config
+# **/tsconfig*.json  # Commented out - Next.js needs tsconfig.json for build
 **/jest.config.*
 **/pytest.ini
-**/setup.py
-**/setup.cfg
-**/pyproject.toml
+# **/setup.py  # Commented out - Python projects may need this
+# **/setup.cfg  # Commented out - Python projects may need this
+# **/pyproject.toml  # Commented out - Python projects may need this

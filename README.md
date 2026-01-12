@@ -37,6 +37,23 @@ Martin-Coder is a comprehensive AI-powered development platform that combines th
 
 ### Quick Start
 
+#### Automated Setup (Recommended)
+
+```bash
+# Clone the repository
+git clone https://github.com/neo3x/martin-coder.git
+cd martin-coder
+
+# Run the management script
+chmod +x martin.sh
+./martin.sh start
+
+# Or run without arguments for interactive menu
+./martin.sh
+```
+
+#### Manual Setup
+
 ```bash
 # Clone the repository
 git clone https://github.com/neo3x/martin-coder.git
@@ -45,16 +62,76 @@ cd martin-coder
 # Copy environment configuration
 cp .env.example .env
 
-# Start with Docker
+# Edit .env file with your API keys (optional for local models)
+# nano .env
+
+# Build and start all services
+docker-compose build
 docker-compose up -d
+
+# Check services status
+docker-compose ps
+
+# View logs
+docker-compose logs -f
 
 # Access the application
 # Web UI: http://localhost:3000
 # API: http://localhost:8000
+# API Docs: http://localhost:8000/docs
+```
+
+#### Docker Commands Reference
+
+```bash
+# Start all services
+docker-compose up -d
+
+# Stop all services
+docker-compose down
+
+# Rebuild containers (after code changes)
+docker-compose build
+
+# View logs
+docker-compose logs -f [service_name]
+
+# Restart a specific service
+docker-compose restart api
+
+# Stop and remove all containers, volumes and networks
+docker-compose down -v
+
+# Access container shell
+docker-compose exec api bash
+docker-compose exec web sh
+```
+
+### Management Script
+
+The project includes a unified management script for all Docker operations:
+
+```bash
+# Interactive menu (no arguments)
+./martin.sh
+
+# Or use direct commands
+./martin.sh start    # Start all services
+./martin.sh stop     # Stop services (interactive)
+./martin.sh restart  # Restart all services
+./martin.sh status   # Show service status and health
+./martin.sh logs     # View all logs
+./martin.sh logs api # View logs for specific service
+./martin.sh build    # Rebuild containers
+./martin.sh clean    # Remove everything (containers + data)
+./martin.sh shell api # Access container shell
+./martin.sh help     # Show all available commands
 ```
 
 ### Documentation
 
+- [Management Script Guide](MARTIN-SCRIPT.md) - Complete martin.sh documentation
+- [Docker Setup Guide](DOCKER.md) - Docker reference and troubleshooting
 - [Installation Guide](docs/en/installation.md)
 - [User Manual](docs/en/user-manual.md)
 - [API Reference](docs/en/api-reference.md)
@@ -106,6 +183,23 @@ Martin-Coder es una plataforma de desarrollo integral impulsada por IA que combi
 
 ### Inicio Rápido
 
+#### Configuración Automatizada (Recomendado)
+
+```bash
+# Clonar el repositorio
+git clone https://github.com/neo3x/martin-coder.git
+cd martin-coder
+
+# Ejecutar el script de gestión
+chmod +x martin.sh
+./martin.sh start
+
+# O ejecutar sin argumentos para menú interactivo
+./martin.sh
+```
+
+#### Configuración Manual
+
 ```bash
 # Clonar el repositorio
 git clone https://github.com/neo3x/martin-coder.git
@@ -114,16 +208,76 @@ cd martin-coder
 # Copiar configuración de entorno
 cp .env.example .env
 
-# Iniciar con Docker
+# Editar archivo .env con tus API keys (opcional para modelos locales)
+# nano .env
+
+# Construir e iniciar todos los servicios
+docker-compose build
 docker-compose up -d
+
+# Verificar estado de los servicios
+docker-compose ps
+
+# Ver logs
+docker-compose logs -f
 
 # Acceder a la aplicación
 # Web UI: http://localhost:3000
 # API: http://localhost:8000
+# API Docs: http://localhost:8000/docs
+```
+
+#### Referencia de Comandos Docker
+
+```bash
+# Iniciar todos los servicios
+docker-compose up -d
+
+# Detener todos los servicios
+docker-compose down
+
+# Reconstruir contenedores (después de cambios en el código)
+docker-compose build
+
+# Ver logs
+docker-compose logs -f [nombre_servicio]
+
+# Reiniciar un servicio específico
+docker-compose restart api
+
+# Detener y eliminar todos los contenedores, volúmenes y redes
+docker-compose down -v
+
+# Acceder al shell del contenedor
+docker-compose exec api bash
+docker-compose exec web sh
+```
+
+### Script de Gestión
+
+El proyecto incluye un script unificado para todas las operaciones de Docker:
+
+```bash
+# Menú interactivo (sin argumentos)
+./martin.sh
+
+# O usar comandos directos
+./martin.sh start       # Iniciar todos los servicios
+./martin.sh stop        # Detener servicios (interactivo)
+./martin.sh restart     # Reiniciar todos los servicios
+./martin.sh status      # Mostrar estado y salud de servicios
+./martin.sh logs        # Ver todos los logs
+./martin.sh logs api    # Ver logs de un servicio específico
+./martin.sh build       # Reconstruir contenedores
+./martin.sh clean       # Eliminar todo (contenedores + datos)
+./martin.sh shell api   # Acceder al shell del contenedor
+./martin.sh help        # Mostrar todos los comandos disponibles
 ```
 
 ### Documentación
 
+- [Guía del Script de Gestión](MARTIN-SCRIPT.md) - Documentación completa de martin.sh
+- [Guía de Docker](DOCKER.md) - Referencia completa de Docker y solución de problemas
 - [Guía de Instalación](docs/es/instalacion.md)
 - [Manual de Usuario](docs/es/manual-usuario.md)
 - [Referencia de API](docs/es/referencia-api.md)
