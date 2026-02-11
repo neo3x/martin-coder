@@ -208,5 +208,13 @@
     "support": "Support",
     "privacy": "Privacy",
     "terms": "Terms"
+  },
+  "workspace": {
+    "showTerminal": "Show Terminal",
+    "hideTerminal": "Hide Terminal",
+    "showEditor": "Show Editor",
+    "hideEditor": "Hide Editor",
+    "terminal": "Terminal",
+    "editor": "Editor"
   }
 }

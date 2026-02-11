@@ -1,5 +1,145 @@
 # Bug Fixes - Martin-Coder
 
+## 2026-02-11
+
+### Frontend Stability, Build, and PR Compatibility Fixes
+
+#### 21. Restored missing frontend architecture (API client + Zustand stores + shared types)
+**Issue:** The web app failed to build due to missing modules and unresolved imports:
+- `@/lib/api`
+- `@/lib/stores/auth-store`
+- `@/lib/stores/chat-store`
+- `@/lib/stores/model-store`
+- `@/lib/stores/theme-store`
+
+**Root Cause:** Core frontend runtime files were absent from the repository, but components depended on them.
+
+**Solution:**
+- Added `apps/web/lib/api.ts` with:
+  - token storage helpers,
+  - normalized URL building for `/api` vs `/api/v1`,
+  - JSON request helpers (`get/post/patch/delete`),
+  - SSE stream parser for chat streaming.
+- Added `apps/web/lib/types/index.ts` to centralize shared interfaces (`User`, `Chat`, `ChatMessage`, `AIProvider`, tokens).
+- Added/implemented Zustand stores:
+  - `auth-store.ts` (initialize/login/register/logout/token bootstrap),
+  - `chat-store.ts` (chat CRUD + streaming flow),
+  - `model-store.ts` (providers/models with persistence),
+  - `theme-store.ts` (theme persistence + resolved theme).
+
+**Files Created:**
+- `apps/web/lib/api.ts`
+- `apps/web/lib/types/index.ts`
+- `apps/web/lib/stores/auth-store.ts`
+- `apps/web/lib/stores/chat-store.ts`
+- `apps/web/lib/stores/model-store.ts`
+- `apps/web/lib/stores/theme-store.ts`
+
+---
+
+#### 22. Fixed offline build blocker caused by remote Google Font fetch
+**Issue:** `next build` failed in restricted/offline environments while fetching `Inter` from Google Fonts.
+
+**Root Cause:** `apps/web/app/layout.tsx` used `next/font/google`, which requires network access at build time.
+
+**Solution:**
+- Removed `next/font/google` dependency from the layout.
+- Kept app layout with local CSS/global styling so build works without external font download.
+
+**Files Changed:**
+- `apps/web/app/layout.tsx`
+
+---
+
+#### 23. Made frontend linting reproducible (non-interactive ESLint setup)
+**Issue:** `npm run lint` opened an interactive setup wizard, which is unsuitable for CI/CD.
+
+**Root Cause:** Missing project ESLint configuration for Next.js.
+
+**Solution:**
+- Added `.eslintrc.json` extending `next/core-web-vitals`.
+- Added/kept `next-env.d.ts` for stable TS/Next typing baseline.
+
+**Files Created:**
+- `apps/web/.eslintrc.json`
+- `apps/web/next-env.d.ts`
+
+---
+
+#### 24. Fixed React Hooks dependency warning in Drive panel
+**Issue:** Lint warning for missing dependency in `useEffect` in `DrivePanel` (`react-hooks/exhaustive-deps`).
+
+**Root Cause:** `loadFiles` function identity changed across renders while used in effect.
+
+**Solution:**
+- Wrapped `loadFiles` in `useCallback`.
+- Updated effect dependencies to reference the memoized callback.
+
+**Files Changed:**
+- `apps/web/components/drive/drive-panel.tsx`
+
+---
+
+#### 25. Improved i18n consistency in workspace controls
+**Issue:** Main workspace controls used hardcoded English text for tooltips/actions.
+
+**Root Cause:** Missing translation keys and direct string literals in `app/page.tsx`.
+
+**Solution:**
+- Wired `useTranslations("workspace")` in `app/page.tsx`.
+- Replaced hardcoded labels for terminal/editor controls with translated keys.
+- Added new `workspace` section in EN/ES message bundles.
+
+**Files Changed:**
+- `apps/web/app/page.tsx`
+- `apps/web/messages/en.json`
+- `apps/web/messages/es.json`
+
+---
+
+#### 26. Added missing configuration documentation referenced by README
+**Issue:** README referenced configuration docs that were missing.
+
+**Root Cause:** Missing docs files in both languages.
+
+**Solution:**
+- Added baseline configuration docs in English and Spanish.
+
+**Files Created:**
+- `docs/en/configuration.md`
+- `docs/es/configuracion.md`
+
+---
+
+#### 27. Fixed PR compatibility issue with binary assets
+**Issue:** Pull request tooling reported binary-file compatibility errors (`"Los archivos binarios no son compatibles"`).
+
+**Root Cause:** A binary logo (`docs/assets/logo.png`) was included in the changeset, which some review pipelines cannot diff/render reliably.
+
+**Solution:**
+- Removed binary `logo.png`.
+- Added text-based `logo.svg` equivalent.
+- Updated README image reference to the SVG asset.
+
+**Files Changed:**
+- `README.md`
+- `docs/assets/logo.svg` (created)
+- `docs/assets/logo.png` (removed)
+
+---
+
+#### 28. Validation status after fixes
+**Checks executed successfully:**
+- `cd apps/web && npx tsc --noEmit`
+- `cd apps/web && npm run lint`
+- `cd apps/web && npm run build`
+- `python3 -m compileall apps/api/app apps/cli/martin_coder`
+
+**Additional verification:**
+- Local visual smoke test of web UI with Playwright screenshot artifact.
+
+---
+
 ## 2026-01-12
 
 ### Frontend-Backend Integration Fixes

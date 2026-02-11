@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Martin-Coder Logo](docs/assets/logo.png)
+![Martin-Coder Logo](docs/assets/logo.svg)
 
 **AI-Powered Code Generation, Editing, and Debugging Platform**
 
