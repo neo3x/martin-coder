@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { api } from "@/lib/api";
 
@@ -38,12 +38,6 @@ export function DrivePanel() {
     checkStatus();
   }, []);
 
-  // Load files when folder changes
-  useEffect(() => {
-    if (status?.connected) {
-      loadFiles();
-    }
-  }, [currentFolder, status?.connected]);
 
   const checkStatus = async () => {
     try {
@@ -67,7 +61,7 @@ export function DrivePanel() {
     }
   };
 
-  const loadFiles = async () => {
+  const loadFiles = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -80,7 +74,15 @@ export function DrivePanel() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentFolder]);
+
+
+  // Load files when folder changes
+  useEffect(() => {
+    if (status?.connected) {
+      loadFiles();
+    }
+  }, [loadFiles, status?.connected]);
 
   const navigateToFolder = (folderId: string, folderName: string) => {
     setCurrentFolder(folderId);
