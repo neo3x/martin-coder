@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
+import { useThemeStore } from "@/lib/stores/theme-store";
 
 // Dynamic import for Monaco Editor (client-side only)
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
@@ -17,15 +18,18 @@ interface EditorPanelProps {
   initialValue?: string;
   language?: string;
   onChange?: (value: string | undefined) => void;
+  onClose?: () => void;
 }
 
 export function EditorPanel({
   initialValue = "",
   language = "typescript",
   onChange,
+  onClose,
 }: EditorPanelProps) {
   const [value, setValue] = useState(initialValue);
   const [currentLanguage, setCurrentLanguage] = useState(language);
+  const { resolvedTheme } = useThemeStore();
 
   const languages = [
     { id: "typescript", name: "TypeScript" },
@@ -93,6 +97,17 @@ export function EditorPanel({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
             </svg>
           </button>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-1.5 hover:bg-accent rounded"
+              title="Close Editor"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
 
@@ -103,7 +118,7 @@ export function EditorPanel({
           language={currentLanguage}
           value={value}
           onChange={handleEditorChange}
-          theme="vs-dark"
+          theme={resolvedTheme === "dark" ? "vs-dark" : "light"}
           options={{
             minimap: { enabled: true },
             fontSize: 14,

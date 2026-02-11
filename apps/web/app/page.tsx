@@ -10,10 +10,14 @@ import { useAuthStore } from "@/lib/stores/auth-store";
 import { LoginForm } from "@/components/auth/login-form";
 
 export default function Home() {
-  const { isAuthenticated } = useAuthStore();
-  const [activePanel, setActivePanel] = useState<"chat" | "editor" | "terminal">("chat");
+  const { isAuthenticated, isLoading } = useAuthStore();
   const [showTerminal, setShowTerminal] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  if (isLoading) {
+    return <div className="min-h-screen bg-background" />;
+  }
 
   if (!isAuthenticated) {
     return (
@@ -25,36 +29,40 @@ export default function Home() {
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
-      <Header />
+      <Header onMenuClick={() => setMobileSidebarOpen(true)} />
       <div className="flex-1 flex overflow-hidden">
-        <Sidebar />
+        <Sidebar
+          mobileOpen={mobileSidebarOpen}
+          onCloseMobile={() => setMobileSidebarOpen(false)}
+        />
         <main className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 flex overflow-hidden">
-            {/* Chat Panel - Always visible */}
-            <div className={`${showEditor ? 'w-[400px] min-w-[350px] border-r border-border/50' : 'flex-1'} flex flex-col transition-all duration-300`}>
+            <div
+              className={`${
+                showEditor
+                  ? "hidden lg:flex lg:w-[420px] lg:min-w-[360px] lg:border-r lg:border-border/50"
+                  : "flex"
+              } flex-1 flex-col transition-all duration-300`}
+            >
               <ChatPanel />
             </div>
 
-            {/* Editor Panel */}
             {showEditor && (
-              <div className="flex-1 flex flex-col animate-slide-up">
-                <EditorPanel />
+              <div className="flex-1 min-w-0 flex flex-col animate-slide-up">
+                <EditorPanel onClose={() => setShowEditor(false)} />
               </div>
             )}
           </div>
 
-          {/* Terminal Panel */}
           {showTerminal && (
-            <div className="h-72 border-t border-border/50 animate-slide-up">
+            <div className="h-56 lg:h-72 border-t border-border/50 animate-slide-up">
               <TerminalPanel onClose={() => setShowTerminal(false)} />
             </div>
           )}
         </main>
       </div>
 
-      {/* Floating Action Buttons */}
-      <div className="fixed bottom-6 right-6 flex flex-col-reverse gap-3">
-        {/* Toggle Terminal */}
+      <div className="fixed bottom-4 right-4 lg:bottom-6 lg:right-6 flex flex-col-reverse gap-3 z-40">
         <button
           onClick={() => setShowTerminal(!showTerminal)}
           className={`group relative fab ${showTerminal ? 'bg-primary' : 'bg-card border border-border/50 text-foreground shadow-xl'}`}
@@ -69,7 +77,6 @@ export default function Home() {
           </span>
         </button>
 
-        {/* Toggle Editor */}
         <button
           onClick={() => setShowEditor(!showEditor)}
           className={`group relative fab ${showEditor ? 'bg-primary' : 'bg-card border border-border/50 text-foreground shadow-xl'}`}
@@ -83,24 +90,8 @@ export default function Home() {
             {showEditor ? "Hide Editor" : "Show Editor"}
           </span>
         </button>
-
-        {/* View Toggle */}
-        <button
-          onClick={() => setActivePanel(activePanel === "chat" ? "editor" : "chat")}
-          className="group relative fab bg-gradient-to-br from-primary to-purple-600"
-          title="Toggle View"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-          </svg>
-          {/* Tooltip */}
-          <span className="absolute right-full mr-3 px-2 py-1 text-xs font-medium bg-foreground text-background rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-            Toggle Layout
-          </span>
-        </button>
       </div>
 
-      {/* Keyboard Shortcuts Indicator */}
       <div className="fixed bottom-6 left-6 hidden lg:flex items-center gap-4 text-xs text-muted-foreground/60">
         <span className="flex items-center gap-1.5">
           <kbd className="px-1.5 py-0.5 rounded bg-muted/50 font-mono text-[10px]">Ctrl</kbd>

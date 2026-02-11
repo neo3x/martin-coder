@@ -4,7 +4,7 @@ Database Configuration and Session Management
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import MetaData
+from sqlalchemy import MetaData, text
 import logging
 
 from app.core.config import settings
@@ -63,7 +63,18 @@ async def init_db():
     from app.models import user, project, chat  # Import all models
 
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        db_url = get_database_url()
+        use_pg_lock = db_url.startswith("postgresql+asyncpg://")
+
+        if use_pg_lock:
+            # Serialize schema creation across concurrent app startups.
+            await conn.execute(text("SELECT pg_advisory_lock(987654321)"))
+
+        try:
+            await conn.run_sync(Base.metadata.create_all)
+        finally:
+            if use_pg_lock:
+                await conn.execute(text("SELECT pg_advisory_unlock(987654321)"))
 
     logger.info("Database tables created")
 

@@ -7,8 +7,10 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from pydantic import BaseModel
+import httpx
 
-from app.api.deps import get_db
+from app.api.deps import get_db, get_current_user
 from app.core.security import create_access_token, create_refresh_token, get_password_hash
 from app.core.config import settings
 from app.models.user import User
@@ -21,6 +23,19 @@ router = APIRouter()
 oauth_states: dict = {}
 
 
+class GitHubTokenConnectRequest(BaseModel):
+    token: str
+
+
+class GitHubRepoResponse(BaseModel):
+    id: int
+    name: str
+    full_name: str
+    private: bool
+    html_url: str
+    default_branch: str
+
+
 @router.get("/providers")
 async def list_oauth_providers():
     """List available OAuth providers"""
@@ -30,6 +45,101 @@ async def list_oauth_providers():
         "github": "github" in providers,
         "google": "google" in providers
     }
+
+
+@router.post("/github/token")
+async def connect_github_with_token(
+    payload: GitHubTokenConnectRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Connect GitHub account using a Personal Access Token."""
+    token = payload.token.strip()
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="GitHub token is required"
+        )
+
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        response = await client.get(
+            "https://api.github.com/user",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+        )
+
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid GitHub token or insufficient permissions"
+        )
+
+    user_data = response.json()
+    current_user.oauth_provider = "github"
+    current_user.oauth_id = str(user_data.get("id", current_user.id))
+    current_user.oauth_access_token = token
+    await db.commit()
+
+    return {
+        "connected": True,
+        "username": user_data.get("login"),
+        "name": user_data.get("name"),
+        "avatar_url": user_data.get("avatar_url"),
+    }
+
+
+@router.get("/github/repos", response_model=list[GitHubRepoResponse])
+async def list_github_repositories(
+    current_user: User = Depends(get_current_user)
+):
+    """List repositories from connected GitHub account."""
+    token = current_user.oauth_access_token
+    if not token or current_user.oauth_provider != "github":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="GitHub is not connected with token"
+        )
+
+    repos: list[dict] = []
+    page = 1
+
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        while page <= 5:
+            response = await client.get(
+                "https://api.github.com/user/repos",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json",
+                    "X-GitHub-Api-Version": "2022-11-28",
+                },
+                params={"per_page": 100, "page": page, "sort": "updated"},
+            )
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Failed to fetch repositories from GitHub"
+                )
+
+            chunk = response.json()
+            repos.extend(chunk)
+            if len(chunk) < 100:
+                break
+            page += 1
+
+    return [
+        GitHubRepoResponse(
+            id=repo["id"],
+            name=repo["name"],
+            full_name=repo["full_name"],
+            private=repo["private"],
+            html_url=repo["html_url"],
+            default_branch=repo.get("default_branch", "main"),
+        )
+        for repo in repos
+    ]
 
 
 @router.get("/{provider}/authorize")
@@ -57,7 +167,7 @@ async def oauth_authorize(
     oauth_states[state] = {"redirect_uri": redirect_uri, "provider": provider}
 
     auth_url = oauth_provider.get_authorization_url(
-        redirect_uri=f"{settings.FRONTEND_URL}/api/auth/{provider}/callback",
+        redirect_uri=f"{settings.FRONTEND_URL}/api/oauth/{provider}/callback",
         state=state
     )
 
@@ -85,7 +195,7 @@ async def oauth_callback(
         user_info = await oauth_service.authenticate(
             provider_name=provider,
             code=code,
-            redirect_uri=f"{settings.FRONTEND_URL}/api/auth/{provider}/callback"
+            redirect_uri=f"{settings.FRONTEND_URL}/api/oauth/{provider}/callback"
         )
 
         # Find or create user

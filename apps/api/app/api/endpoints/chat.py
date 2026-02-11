@@ -24,6 +24,24 @@ from app.services.chat import ChatService
 
 router = APIRouter()
 
+def _to_chat_response(chat: Chat, messages: Optional[List[MessageResponse]] = None) -> ChatResponse:
+    """Serialize chat without triggering lazy-loading relationships."""
+    return ChatResponse(
+        id=chat.id,
+        user_id=chat.user_id,
+        project_id=chat.project_id,
+        title=chat.title,
+        ai_provider=chat.ai_provider,
+        ai_model=chat.ai_model,
+        system_prompt=chat.system_prompt,
+        context_files=chat.context_files,
+        message_count=chat.message_count,
+        total_tokens=chat.total_tokens,
+        created_at=chat.created_at,
+        updated_at=chat.updated_at,
+        messages=messages,
+    )
+
 
 @router.get("/", response_model=List[ChatResponse])
 async def list_chats(
@@ -42,7 +60,8 @@ async def list_chats(
     query = query.order_by(Chat.updated_at.desc()).offset(skip).limit(limit)
 
     result = await db.execute(query)
-    return result.scalars().all()
+    chats = result.scalars().all()
+    return [_to_chat_response(chat) for chat in chats]
 
 
 @router.post("/", response_model=ChatResponse)
@@ -75,7 +94,7 @@ async def create_chat(
     await db.commit()
     await db.refresh(chat)
 
-    return chat
+    return _to_chat_response(chat)
 
 
 @router.get("/{chat_id}", response_model=ChatResponse)
@@ -100,7 +119,7 @@ async def get_chat(
             detail="Chat not found"
         )
 
-    response = ChatResponse.model_validate(chat)
+    response = _to_chat_response(chat)
 
     if include_messages:
         result = await db.execute(
@@ -145,7 +164,7 @@ async def update_chat(
     await db.commit()
     await db.refresh(chat)
 
-    return chat
+    return _to_chat_response(chat)
 
 
 @router.delete("/{chat_id}")

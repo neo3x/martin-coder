@@ -51,15 +51,22 @@ async def drive_status(
     """Check Google Drive connection status"""
     is_configured = drive_oauth.is_configured
     is_connected = bool(
-        current_user.oauth_provider == "google" and
-        current_user.oauth_access_token
+        current_user.oauth_provider == "google" and current_user.oauth_access_token
     )
 
     return {
         "configured": is_configured,
         "connected": is_connected,
-        "user_has_token": bool(current_user.oauth_access_token) if current_user.oauth_provider == "google" else False
+        "user_has_token": is_connected
     }
+
+
+def _ensure_google_connected(current_user: User):
+    if not current_user.oauth_access_token or current_user.oauth_provider != "google":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not connected to Google Drive"
+        )
 
 
 @router.get("/authorize")
@@ -142,11 +149,7 @@ async def list_drive_files(
     current_user: User = Depends(get_current_user)
 ):
     """List files in a Drive folder"""
-    if not current_user.oauth_access_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not connected to Google Drive"
-        )
+    _ensure_google_connected(current_user)
 
     try:
         drive = GoogleDriveService(current_user.oauth_access_token)
@@ -177,11 +180,7 @@ async def get_drive_file(
     current_user: User = Depends(get_current_user)
 ):
     """Get file details"""
-    if not current_user.oauth_access_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not connected to Google Drive"
-        )
+    _ensure_google_connected(current_user)
 
     try:
         drive = GoogleDriveService(current_user.oauth_access_token)
@@ -209,11 +208,7 @@ async def download_drive_file(
     current_user: User = Depends(get_current_user)
 ):
     """Download file content"""
-    if not current_user.oauth_access_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not connected to Google Drive"
-        )
+    _ensure_google_connected(current_user)
 
     try:
         drive = GoogleDriveService(current_user.oauth_access_token)
@@ -242,11 +237,7 @@ async def create_drive_folder(
     current_user: User = Depends(get_current_user)
 ):
     """Create a folder in Drive"""
-    if not current_user.oauth_access_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not connected to Google Drive"
-        )
+    _ensure_google_connected(current_user)
 
     try:
         drive = GoogleDriveService(current_user.oauth_access_token)
@@ -270,11 +261,7 @@ async def delete_drive_file(
     current_user: User = Depends(get_current_user)
 ):
     """Delete a file or folder from Drive"""
-    if not current_user.oauth_access_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not connected to Google Drive"
-        )
+    _ensure_google_connected(current_user)
 
     try:
         drive = GoogleDriveService(current_user.oauth_access_token)
@@ -300,11 +287,7 @@ async def search_drive_files(
     current_user: User = Depends(get_current_user)
 ):
     """Search files in Drive"""
-    if not current_user.oauth_access_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not connected to Google Drive"
-        )
+    _ensure_google_connected(current_user)
 
     try:
         drive = GoogleDriveService(current_user.oauth_access_token)
@@ -335,11 +318,7 @@ async def sync_from_drive(
     current_user: User = Depends(get_current_user)
 ):
     """Sync a Drive folder to local directory"""
-    if not current_user.oauth_access_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not connected to Google Drive"
-        )
+    _ensure_google_connected(current_user)
 
     try:
         drive = GoogleDriveService(current_user.oauth_access_token)
@@ -366,11 +345,7 @@ async def sync_to_drive(
     current_user: User = Depends(get_current_user)
 ):
     """Sync a local directory to Drive folder"""
-    if not current_user.oauth_access_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not connected to Google Drive"
-        )
+    _ensure_google_connected(current_user)
 
     try:
         drive = GoogleDriveService(current_user.oauth_access_token)

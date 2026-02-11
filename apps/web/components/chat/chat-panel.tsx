@@ -102,7 +102,7 @@ export function ChatPanel() {
             <div className="text-center space-y-8 max-w-2xl animate-fade-in">
               {/* Logo & Title */}
               <div className="space-y-4">
-                <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center shadow-xl shadow-primary/20">
+                <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-xl shadow-primary/20">
                   <svg className="w-10 h-10 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                   </svg>
@@ -165,7 +165,7 @@ export function ChatPanel() {
                   <div className={`w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center ${
                     message.role === "user"
                       ? "bg-primary text-primary-foreground"
-                      : "bg-gradient-to-br from-purple-500 to-pink-500 text-white"
+                      : "bg-gradient-to-br from-primary to-secondary text-white"
                   }`}>
                     {message.role === "user" ? (
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -203,7 +203,7 @@ export function ChatPanel() {
               <div className="flex justify-start animate-slide-up">
                 <div className="flex items-start gap-3 max-w-[85%]">
                   {/* Avatar */}
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 text-white flex-shrink-0 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-secondary text-white flex-shrink-0 flex items-center justify-center">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                     </svg>

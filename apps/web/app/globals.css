@@ -4,56 +4,56 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 0 0% 98%;
+    --foreground: 220 14% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --card-foreground: 220 14% 12%;
+    --primary: 142 72% 30%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 220 14% 94%;
+    --secondary-foreground: 220 18% 18%;
+    --muted: 220 14% 94%;
+    --muted-foreground: 220 9% 40%;
+    --accent: 220 14% 90%;
+    --accent-foreground: 220 18% 15%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --ring: 142 72% 30%;
     --radius: 0.75rem;
 
     /* Brand colors */
-    --brand-primary: 217 91% 60%;
-    --brand-secondary: 263 70% 50%;
-    --brand-accent: 173 80% 40%;
-    --gradient-start: 217 91% 60%;
-    --gradient-end: 263 70% 50%;
+    --brand-primary: 142 72% 35%;
+    --brand-secondary: 220 13% 18%;
+    --brand-accent: 160 84% 28%;
+    --gradient-start: 142 72% 35%;
+    --gradient-end: 220 13% 18%;
   }
 
   .dark {
-    --background: 224 71% 4%;
-    --foreground: 213 31% 91%;
-    --card: 224 71% 6%;
-    --card-foreground: 213 31% 91%;
-    --primary: 217 91% 60%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 222 47% 11%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 223 47% 11%;
-    --muted-foreground: 215.4 16.3% 56.9%;
-    --accent: 222 47% 14%;
-    --accent-foreground: 210 40% 98%;
+    --background: 220 15% 7%;
+    --foreground: 210 18% 90%;
+    --card: 220 14% 10%;
+    --card-foreground: 210 18% 90%;
+    --primary: 142 72% 38%;
+    --primary-foreground: 0 0% 7%;
+    --secondary: 220 12% 13%;
+    --secondary-foreground: 210 18% 90%;
+    --muted: 220 12% 13%;
+    --muted-foreground: 215 10% 60%;
+    --accent: 220 12% 16%;
+    --accent-foreground: 210 18% 90%;
     --destructive: 0 62.8% 50.6%;
     --destructive-foreground: 210 40% 98%;
-    --border: 216 34% 17%;
-    --input: 216 34% 17%;
-    --ring: 217 91% 60%;
+    --border: 220 10% 20%;
+    --input: 220 10% 20%;
+    --ring: 142 72% 38%;
 
     /* Brand colors for dark mode */
-    --brand-primary: 217 91% 60%;
-    --brand-secondary: 263 70% 55%;
-    --brand-accent: 173 80% 45%;
+    --brand-primary: 142 72% 40%;
+    --brand-secondary: 220 10% 18%;
+    --brand-accent: 160 84% 34%;
   }
 }
 
@@ -329,7 +329,7 @@
 
 /* Chat message styles */
 .chat-message {
-  @apply prose prose-sm dark:prose-invert max-w-none;
+  @apply text-sm leading-relaxed max-w-none text-foreground;
 }
 
 .chat-message pre {
