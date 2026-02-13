@@ -339,15 +339,17 @@ class InstallDependenciesTool(BaseTool):
 
             # Build command
             if packages:
-                # Install specific packages
+                # Install specific packages — sanitize input (SEC-06)
+                import shlex
+                safe_packages = " ".join(shlex.quote(p) for p in packages.split())
                 if package_manager == "pip":
-                    command = f"pip install {packages}"
+                    command = f"pip install {safe_packages}"
                 elif package_manager == "npm":
-                    command = f"npm install {packages}"
+                    command = f"npm install {safe_packages}"
                 elif package_manager == "yarn":
-                    command = f"yarn add {packages}"
+                    command = f"yarn add {safe_packages}"
                 elif package_manager == "pnpm":
-                    command = f"pnpm add {packages}"
+                    command = f"pnpm add {safe_packages}"
                 else:
                     return ToolResult(
                         success=False,

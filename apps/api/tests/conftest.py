@@ -2,6 +2,14 @@
 Test Configuration and Fixtures
 """
 
+import os
+
+# Ensure SECRET_KEY is set before any app imports
+os.environ.setdefault(
+    "SECRET_KEY",
+    "test-secret-key-for-unit-tests-must-be-at-least-32-chars-long"
+)
+
 import pytest
 import pytest_asyncio
 from typing import AsyncGenerator

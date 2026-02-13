@@ -1,5 +1,6 @@
 """
 AI Router - Routes requests to appropriate AI providers
+With resilience: retry, timeout, circuit breaker (RES-02/03/04)
 """
 
 from typing import AsyncGenerator, List, Optional, Dict, Any
@@ -12,6 +13,7 @@ from app.services.ai.providers.claude import ClaudeProvider
 from app.services.ai.providers.openai import OpenAIProvider
 from app.services.ai.providers.lmstudio import LMStudioProvider
 from app.services.ai.providers.ollama import OllamaProvider
+from app.services.ai.resilience import CircuitBreaker, retry_with_backoff
 from app.schemas.ai import (
     AIProviderType,
     AIRequest,
@@ -30,28 +32,33 @@ class AIRouter:
 
     def __init__(self):
         self._providers: Dict[str, BaseProvider] = {}
+        self._circuit_breakers: Dict[str, CircuitBreaker] = {}
         self._initialize_providers()
 
     def _initialize_providers(self):
-        """Initialize all configured providers"""
+        """Initialize all configured providers with circuit breakers"""
         # Claude
         if settings.ANTHROPIC_API_KEY:
             self._providers["claude"] = ClaudeProvider()
+            self._circuit_breakers["claude"] = CircuitBreaker("claude")
             logger.info("Claude provider initialized")
 
         # OpenAI
         if settings.OPENAI_API_KEY:
             self._providers["openai"] = OpenAIProvider()
+            self._circuit_breakers["openai"] = CircuitBreaker("openai")
             logger.info("OpenAI provider initialized")
 
         # LM Studio
         if settings.LMSTUDIO_ENABLED:
             self._providers["lmstudio"] = LMStudioProvider()
+            self._circuit_breakers["lmstudio"] = CircuitBreaker("lmstudio")
             logger.info("LM Studio provider initialized")
 
         # Ollama
         if settings.OLLAMA_ENABLED:
             self._providers["ollama"] = OllamaProvider()
+            self._circuit_breakers["ollama"] = CircuitBreaker("ollama")
             logger.info("Ollama provider initialized")
 
     def get_provider(self, provider_name: str) -> BaseProvider:
@@ -150,21 +157,26 @@ class AIRouter:
         max_tokens: int = 4096,
         temperature: float = 0.7,
     ) -> AIResponse:
-        """Send a completion request"""
+        """Send a completion request with retry + circuit breaker."""
         provider_name = self.select_provider(
             preferred=provider,
-            require_tools=tools is not None
+            require_tools=tools is not None,
         )
 
         provider_instance = self.get_provider(provider_name)
+        cb = self._circuit_breakers.get(provider_name)
 
-        return await provider_instance.complete(
+        return await retry_with_backoff(
+            provider_instance.complete,
             messages=messages,
             model=model,
             system_prompt=system_prompt,
             tools=tools,
             max_tokens=max_tokens,
-            temperature=temperature
+            temperature=temperature,
+            max_attempts=settings.AI_RETRY_ATTEMPTS,
+            timeout=float(settings.AI_REQUEST_TIMEOUT),
+            circuit_breaker=cb,
         )
 
     async def stream(
