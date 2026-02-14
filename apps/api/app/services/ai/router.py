@@ -36,18 +36,22 @@ class AIRouter:
         self._initialize_providers()
 
     def _initialize_providers(self):
-        """Initialize all configured providers with circuit breakers"""
-        # Claude
-        if settings.ANTHROPIC_API_KEY:
-            self._providers["claude"] = ClaudeProvider()
-            self._circuit_breakers["claude"] = CircuitBreaker("claude")
-            logger.info("Claude provider initialized")
+        """Initialize all configured providers with circuit breakers.
 
-        # OpenAI
-        if settings.OPENAI_API_KEY:
-            self._providers["openai"] = OpenAIProvider()
-            self._circuit_breakers["openai"] = CircuitBreaker("openai")
-            logger.info("OpenAI provider initialized")
+        Cloud providers (Claude, OpenAI) are always registered so their
+        model catalogues are visible in the UI even before an API key is
+        configured.  They report is_available=False when the key is
+        missing.  Local providers are gated by their ENABLED flag.
+        """
+        # Claude — always register so models are visible in UI
+        self._providers["claude"] = ClaudeProvider()
+        self._circuit_breakers["claude"] = CircuitBreaker("claude")
+        logger.info("Claude provider registered (key configured: %s)", bool(settings.ANTHROPIC_API_KEY))
+
+        # OpenAI — always register so models are visible in UI
+        self._providers["openai"] = OpenAIProvider()
+        self._circuit_breakers["openai"] = CircuitBreaker("openai")
+        logger.info("OpenAI provider registered (key configured: %s)", bool(settings.OPENAI_API_KEY))
 
         # LM Studio
         if settings.LMSTUDIO_ENABLED:
@@ -73,7 +77,7 @@ class AIRouter:
 
         for name, provider in self._providers.items():
             is_available = await provider.is_available()
-            models = await provider.get_models() if is_available else []
+            models = await provider.get_models()
 
             providers.append(AIProviderSchema(
                 name=name,

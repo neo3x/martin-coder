@@ -59,7 +59,7 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
     const init = async () => {
       try {
         const [projectData, oauthData] = await Promise.all([
-          api.get<Project[]>("/api/v1/projects/"),
+          api.get<Project[]>("/api/v1/projects"),
           api.get<OAuthProvidersStatus>("/api/v1/oauth/providers"),
         ]);
         setProjects(projectData);
@@ -104,7 +104,7 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
     }
 
     try {
-      const project = await api.post<Project>("/api/v1/projects/", {
+      const project = await api.post<Project>("/api/v1/projects", {
         name: projectName.trim(),
         local_path: projectPath.trim() || undefined,
         git_url: projectGitUrl.trim() || undefined,
@@ -224,7 +224,7 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+        <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-1">
           {filteredChats.slice(0, 50).map((chat) => (
             <ChatItem
               key={chat.id}
@@ -240,7 +240,7 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
         </div>
 
         {(!isCollapsed || mobileOpen) && (
-          <div className="border-t border-border/50 p-3 md:p-4 space-y-4">
+          <div className="flex-shrink-0 max-h-[45vh] overflow-y-auto border-t border-border/50 p-3 md:p-4 space-y-4">
             <div>
               <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
                 {t("projects")}

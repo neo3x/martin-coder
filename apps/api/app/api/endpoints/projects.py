@@ -22,7 +22,7 @@ from app.services.project import ProjectService
 router = APIRouter()
 
 
-@router.get("/", response_model=List[ProjectResponse])
+@router.get("", response_model=List[ProjectResponse])
 async def list_projects(
     skip: int = 0,
     limit: int = 100,
@@ -54,7 +54,7 @@ async def list_projects(
     return response
 
 
-@router.post("/", response_model=ProjectResponse)
+@router.post("", response_model=ProjectResponse)
 async def create_project(
     project_in: ProjectCreate,
     db: AsyncSession = Depends(get_db),

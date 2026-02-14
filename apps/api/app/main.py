@@ -48,6 +48,11 @@ handler.setFormatter(JSONFormatter())
 logging.root.handlers = [handler]
 logging.root.setLevel(getattr(logging, settings.LOG_LEVEL))
 
+# Disable uvicorn's default access log to avoid duplicate request logs
+# (our RequestContextMiddleware already emits structured JSON request logs)
+logging.getLogger("uvicorn.access").handlers = []
+logging.getLogger("uvicorn.access").propagate = False
+
 logger = logging.getLogger(__name__)
 
 

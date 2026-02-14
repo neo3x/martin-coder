@@ -43,7 +43,7 @@ def _to_chat_response(chat: Chat, messages: Optional[List[MessageResponse]] = No
     )
 
 
-@router.get("/", response_model=List[ChatResponse])
+@router.get("", response_model=List[ChatResponse])
 async def list_chats(
     project_id: Optional[str] = None,
     skip: int = 0,
@@ -64,7 +64,7 @@ async def list_chats(
     return [_to_chat_response(chat) for chat in chats]
 
 
-@router.post("/", response_model=ChatResponse)
+@router.post("", response_model=ChatResponse)
 async def create_chat(
     chat_in: ChatCreate,
     db: AsyncSession = Depends(get_db),
