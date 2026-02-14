@@ -64,11 +64,15 @@ class ChatService:
         # Get conversation history
         messages = await self._get_conversation_messages(chat)
 
-        # Get RAG context if project exists
+        # Get RAG context if project exists — with fallback (RES-05)
         context = ""
         if project and project.is_indexed:
-            rag = RAGRetriever(project.id)
-            context = await rag.get_context_for_query(message)
+            try:
+                rag = RAGRetriever(project.id)
+                context = await rag.get_context_for_query(message)
+            except Exception as e:
+                logger.warning("RAG retrieval failed, continuing without context: %s", e)
+                context = ""
 
         # Prepare system prompt
         system_prompt = self._build_system_prompt(project, context)
@@ -137,11 +141,15 @@ class ChatService:
         # Get conversation history
         messages = await self._get_conversation_messages(chat)
 
-        # Get RAG context
+        # Get RAG context — with fallback (RES-05)
         context = ""
         if project and project.is_indexed:
-            rag = RAGRetriever(project.id)
-            context = await rag.get_context_for_query(message)
+            try:
+                rag = RAGRetriever(project.id)
+                context = await rag.get_context_for_query(message)
+            except Exception as e:
+                logger.warning("RAG retrieval failed, continuing without context: %s", e)
+                context = ""
 
         # Prepare system prompt
         system_prompt = self._build_system_prompt(project, context)

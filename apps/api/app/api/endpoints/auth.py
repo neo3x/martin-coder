@@ -1,35 +1,86 @@
 """
-Authentication Endpoints
+Authentication Endpoints — SEC-10 (account lockout), SEC-03 (rate limiting)
 """
 
+import logging
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, status
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.api.deps import get_db, get_current_user
+from app.core.config import settings
 from app.core.security import (
     verify_password,
     get_password_hash,
     create_access_token,
     create_refresh_token,
-    decode_token
+    decode_token,
 )
 from app.models.user import User
 from app.schemas.user import (
     UserCreate,
     UserResponse,
     LoginRequest,
-    Token
+    Token,
 )
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
+
+# ---------------------------------------------------------------------------
+# Redis-backed login-attempt tracking (SEC-10)
+# ---------------------------------------------------------------------------
+
+async def _get_redis():
+    import redis.asyncio as aioredis
+    return aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+
+
+async def _check_lockout(email: str) -> None:
+    """Raise 429 if the account is locked out."""
+    r = await _get_redis()
+    try:
+        attempts = await r.get(f"login_attempts:{email}")
+        if attempts and int(attempts) >= settings.MAX_LOGIN_ATTEMPTS:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Account temporarily locked. Try again in {settings.LOCKOUT_DURATION_MINUTES} minutes.",
+            )
+    finally:
+        await r.aclose()
+
+
+async def _record_failed_attempt(email: str) -> None:
+    """Increment failed-attempt counter with TTL."""
+    r = await _get_redis()
+    try:
+        key = f"login_attempts:{email}"
+        await r.incr(key)
+        await r.expire(key, settings.LOCKOUT_DURATION_MINUTES * 60)
+    finally:
+        await r.aclose()
+
+
+async def _clear_attempts(email: str) -> None:
+    """Clear failed-attempt counter on successful login."""
+    r = await _get_redis()
+    try:
+        await r.delete(f"login_attempts:{email}")
+    finally:
+        await r.aclose()
+
+
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
 
 @router.post("/register", response_model=UserResponse)
 async def register(
     user_in: UserCreate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """Register a new user"""
     # Check if email exists
@@ -39,7 +90,7 @@ async def register(
     if result.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
+            detail="Email already registered",
         )
 
     # Check if username exists
@@ -49,7 +100,7 @@ async def register(
     if result.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already taken"
+            detail="Username already taken",
         )
 
     # Create user
@@ -57,7 +108,7 @@ async def register(
         email=user_in.email,
         username=user_in.username,
         full_name=user_in.full_name,
-        hashed_password=get_password_hash(user_in.password)
+        hashed_password=get_password_hash(user_in.password),
     )
 
     db.add(user)
@@ -70,9 +121,12 @@ async def register(
 @router.post("/login", response_model=Token)
 async def login(
     login_data: LoginRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    """Login and get access token"""
+    """Login and get access token — with account lockout (SEC-10)."""
+    # Check lockout before any password verification
+    await _check_lockout(login_data.email)
+
     # Find user by email
     result = await db.execute(
         select(User).where(User.email == login_data.email)
@@ -80,16 +134,20 @@ async def login(
     user = result.scalar_one_or_none()
 
     if not user or not verify_password(login_data.password, user.hashed_password):
+        await _record_failed_attempt(login_data.email)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
+            detail="Incorrect email or password",
         )
 
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is disabled"
+            detail="User account is disabled",
         )
+
+    # Clear attempt counter on success
+    await _clear_attempts(login_data.email)
 
     # Update last login
     user.last_login = datetime.now(timezone.utc)
@@ -101,7 +159,7 @@ async def login(
 
     return Token(
         access_token=access_token,
-        refresh_token=refresh_token
+        refresh_token=refresh_token,
     )
 
 

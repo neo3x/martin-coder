@@ -1,9 +1,13 @@
 """
-OAuth Endpoints
+OAuth Endpoints — SEC-02 (HttpOnly cookies), SEC-08 (Redis state)
 """
 
+import json as _json
 import secrets
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+import logging
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Response
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -17,10 +21,42 @@ from app.models.user import User
 from app.services.oauth import oauth_service, OAuthUserInfo
 from app.schemas.user import Token
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
 
-# Store OAuth states (in production, use Redis)
-oauth_states: dict = {}
+
+# ---------------------------------------------------------------------------
+# Redis-backed OAuth state store (SEC-08)
+# ---------------------------------------------------------------------------
+
+async def _get_redis():
+    """Lazy Redis connection for OAuth state."""
+    import redis.asyncio as aioredis
+    return aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+
+
+async def _store_oauth_state(state: str, data: dict) -> None:
+    """Persist OAuth state in Redis with a 10-minute TTL."""
+    r = await _get_redis()
+    try:
+        await r.setex(f"oauth_state:{state}", 600, _json.dumps(data))
+    finally:
+        await r.aclose()
+
+
+async def _pop_oauth_state(state: str) -> Optional[dict]:
+    """Retrieve and delete OAuth state from Redis."""
+    r = await _get_redis()
+    try:
+        key = f"oauth_state:{state}"
+        raw = await r.get(key)
+        if raw:
+            await r.delete(key)
+            return _json.loads(raw)
+        return None
+    finally:
+        await r.aclose()
 
 
 class GitHubTokenConnectRequest(BaseModel):
@@ -162,9 +198,9 @@ async def oauth_authorize(
             detail=f"Provider {provider} is not configured"
         )
 
-    # Generate state for CSRF protection
+    # Generate state for CSRF protection — stored in Redis (SEC-08)
     state = secrets.token_urlsafe(32)
-    oauth_states[state] = {"redirect_uri": redirect_uri, "provider": provider}
+    await _store_oauth_state(state, {"redirect_uri": redirect_uri, "provider": provider})
 
     auth_url = oauth_provider.get_authorization_url(
         redirect_uri=f"{settings.FRONTEND_URL}/api/oauth/{provider}/callback",
@@ -179,15 +215,15 @@ async def oauth_callback(
     provider: str,
     code: str = Query(...),
     state: str = Query(...),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    """Handle OAuth callback"""
-    # Verify state
-    state_data = oauth_states.pop(state, None)
+    """Handle OAuth callback — tokens set as HttpOnly cookies (SEC-02)."""
+    # Verify state from Redis (SEC-08)
+    state_data = await _pop_oauth_state(state)
     if not state_data:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired state"
+            detail="Invalid or expired state",
         )
 
     try:
@@ -195,7 +231,7 @@ async def oauth_callback(
         user_info = await oauth_service.authenticate(
             provider_name=provider,
             code=code,
-            redirect_uri=f"{settings.FRONTEND_URL}/api/oauth/{provider}/callback"
+            redirect_uri=f"{settings.FRONTEND_URL}/api/oauth/{provider}/callback",
         )
 
         # Find or create user
@@ -205,16 +241,37 @@ async def oauth_callback(
         access_token = create_access_token(subject=user.id)
         refresh_token = create_refresh_token(subject=user.id)
 
-        # Redirect back to frontend with tokens
+        # Redirect — tokens in HttpOnly cookies instead of URL (SEC-02)
         redirect_uri = state_data["redirect_uri"]
-        return RedirectResponse(
-            url=f"{redirect_uri}?access_token={access_token}&refresh_token={refresh_token}"
+        redirect = RedirectResponse(url=redirect_uri, status_code=302)
+
+        is_secure = settings.ENVIRONMENT == "production"
+        redirect.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            secure=is_secure,
+            samesite="lax",
+            max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            path="/",
+        )
+        redirect.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            secure=is_secure,
+            samesite="lax",
+            max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+            path="/api/v1/auth/refresh",
         )
 
+        return redirect
+
     except Exception as e:
+        logger.error(f"OAuth callback error for {provider}: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
+            detail="OAuth authentication failed",
         )
 
 

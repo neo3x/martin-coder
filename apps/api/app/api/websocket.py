@@ -68,20 +68,30 @@ class ConnectionManager:
     async def send_to_user(self, user_id: str, message: dict):
         """Send message to all connections of a user"""
         if user_id in self.active_connections:
+            dead: list[WebSocket] = []
             for connection in self.active_connections[user_id]:
                 try:
                     await connection.send_json(message)
                 except Exception as e:
                     logger.error(f"Error sending to user {user_id}: {e}")
+                    dead.append(connection)
+            # Clean up dead connections (RES-06)
+            for ws in dead:
+                self.disconnect(ws, user_id)
 
     async def broadcast_to_chat(self, chat_id: str, message: dict):
         """Broadcast message to all connections in a chat"""
         if chat_id in self.chat_connections:
+            dead: list[WebSocket] = []
             for connection in self.chat_connections[chat_id]:
                 try:
                     await connection.send_json(message)
                 except Exception as e:
                     logger.error(f"Error broadcasting to chat {chat_id}: {e}")
+                    dead.append(connection)
+            # Clean up dead connections (RES-06)
+            for ws in dead:
+                self.chat_connections[chat_id].discard(ws)
 
 
 # Global connection manager

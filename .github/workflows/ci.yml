@@ -1,0 +1,135 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20"
+
+jobs:
+  # -------------------------------------------------------------------
+  # Backend: lint, type-check, test
+  # -------------------------------------------------------------------
+  backend:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: apps/api/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Lint (ruff)
+        run: ruff check app/ tests/
+
+      - name: Format check (black)
+        run: black --check app/ tests/
+
+      - name: Type check (mypy)
+        run: mypy app/ --ignore-missing-imports --no-error-summary || true
+
+      - name: Run tests
+        env:
+          SECRET_KEY: ci-test-secret-key-that-is-long-enough-for-validation
+          REDIS_URL: redis://localhost:6379/0
+          DATABASE_URL: sqlite:///./test.db
+        run: pytest --cov=app --cov-report=xml --cov-fail-under=40 -q
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: apps/api/coverage.xml
+
+  # -------------------------------------------------------------------
+  # Frontend: lint, type-check, build
+  # -------------------------------------------------------------------
+  frontend:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+
+  # -------------------------------------------------------------------
+  # Docker: verify images build successfully
+  # -------------------------------------------------------------------
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build API image
+        run: docker build -f docker/api.Dockerfile -t martin-coder-api:test .
+
+      - name: Build Web image
+        run: docker build -f docker/web.Dockerfile -t martin-coder-web:test .
+
+  # -------------------------------------------------------------------
+  # Security: dependency scanning
+  # -------------------------------------------------------------------
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Audit Python dependencies
+        run: pip-audit -r apps/api/requirements.txt --ignore-vuln PYSEC-2024-* || true
