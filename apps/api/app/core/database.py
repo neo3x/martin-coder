@@ -5,6 +5,7 @@ Database Configuration and Session Management
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import MetaData, text
+from sqlalchemy.exc import IntegrityError
 import logging
 
 from app.core.config import settings
@@ -89,23 +90,31 @@ async def create_first_admin():
     from sqlalchemy import select
 
     async with async_session_maker() as session:
-        # Check if admin exists
-        result = await session.execute(
-            select(User).where(User.email == settings.FIRST_ADMIN_EMAIL)
-        )
-        admin = result.scalar_one_or_none()
-
-        if not admin:
-            admin = User(
-                email=settings.FIRST_ADMIN_EMAIL,
-                username="admin",
-                hashed_password=get_password_hash(settings.FIRST_ADMIN_PASSWORD),
-                is_active=True,
-                is_superuser=True
+        try:
+            # Best-effort check first (avoids unnecessary INSERT on steady state).
+            result = await session.execute(
+                select(User).where(User.email == settings.FIRST_ADMIN_EMAIL)
             )
-            session.add(admin)
+            admin = result.scalar_one_or_none()
+
+            if admin:
+                return
+
+            session.add(
+                User(
+                    email=settings.FIRST_ADMIN_EMAIL,
+                    username="admin",
+                    hashed_password=get_password_hash(settings.FIRST_ADMIN_PASSWORD),
+                    is_active=True,
+                    is_superuser=True,
+                )
+            )
             await session.commit()
             logger.info(f"Created admin user: {settings.FIRST_ADMIN_EMAIL}")
+        except IntegrityError:
+            # Concurrent startup can race on first-admin creation.
+            await session.rollback()
+            logger.info("Admin user already exists, skipping creation")
 
 
 async def get_db() -> AsyncSession:

@@ -106,6 +106,10 @@ class ClaudeProvider(BaseProvider):
                 ))
         return tool_calls if tool_calls else None
 
+    @staticmethod
+    def _is_tools_kwarg_error(error: Exception) -> bool:
+        return "unexpected keyword argument 'tools'" in str(error)
+
     async def complete(
         self,
         messages: List[AIMessage],
@@ -133,11 +137,18 @@ class ClaudeProvider(BaseProvider):
         if system_prompt:
             kwargs["system"] = system_prompt
 
-        if formatted_tools:
-            kwargs["tools"] = formatted_tools
-
         try:
-            response = await self.client.messages.create(**kwargs)
+            if formatted_tools:
+                try:
+                    response = await self.client.messages.create(**kwargs, tools=formatted_tools)
+                except TypeError as e:
+                    if not self._is_tools_kwarg_error(e):
+                        raise
+                    logger.warning("Anthropic SDK does not support `tools` in create; retrying without tools")
+                    self.supports_tools = False
+                    response = await self.client.messages.create(**kwargs)
+            else:
+                response = await self.client.messages.create(**kwargs)
 
             # Extract text content
             content = ""
@@ -191,10 +202,77 @@ class ClaudeProvider(BaseProvider):
         if system_prompt:
             kwargs["system"] = system_prompt
 
-        if formatted_tools:
-            kwargs["tools"] = formatted_tools
-
         try:
+            # Prefer streaming with tools when supported by SDK.
+            if formatted_tools:
+                try:
+                    async with self.client.messages.stream(**kwargs, tools=formatted_tools) as stream:
+                        current_tool_call = None
+
+                        async for event in stream:
+                            if event.type == "content_block_start":
+                                if hasattr(event.content_block, 'type'):
+                                    if event.content_block.type == "tool_use":
+                                        current_tool_call = {
+                                            "id": event.content_block.id,
+                                            "name": event.content_block.name,
+                                            "arguments": ""
+                                        }
+                                        yield StreamDelta(
+                                            type="tool_call_start",
+                                            tool_call=current_tool_call
+                                        )
+
+                            elif event.type == "content_block_delta":
+                                if hasattr(event.delta, 'text'):
+                                    yield StreamDelta(
+                                        type="text",
+                                        text=event.delta.text
+                                    )
+                                elif hasattr(event.delta, 'partial_json'):
+                                    if current_tool_call:
+                                        current_tool_call["arguments"] += event.delta.partial_json
+                                        yield StreamDelta(
+                                            type="tool_call_delta",
+                                            tool_call={"partial_json": event.delta.partial_json}
+                                        )
+
+                            elif event.type == "content_block_stop":
+                                if current_tool_call:
+                                    yield StreamDelta(
+                                        type="tool_call_end",
+                                        tool_call=current_tool_call
+                                    )
+                                    current_tool_call = None
+                    return
+                except TypeError as e:
+                    if not self._is_tools_kwarg_error(e):
+                        raise
+                    logger.warning("Anthropic SDK does not support `tools` in stream; falling back to create")
+                    self.supports_tools = False
+
+                # Fallback to non-streaming create and emit compatible deltas.
+                try:
+                    response = await self.client.messages.create(**kwargs, tools=formatted_tools)
+                except TypeError as e:
+                    if not self._is_tools_kwarg_error(e):
+                        raise
+                    logger.warning("Anthropic SDK does not support `tools` in create fallback; retrying without tools")
+                    response = await self.client.messages.create(**kwargs)
+
+                for block in response.content:
+                    if hasattr(block, "type") and block.type == "tool_use":
+                        tool_call = {
+                            "id": block.id,
+                            "name": block.name,
+                            "arguments": block.input,
+                        }
+                        yield StreamDelta(type="tool_call_start", tool_call=tool_call)
+                        yield StreamDelta(type="tool_call_end", tool_call=tool_call)
+                    elif hasattr(block, "text") and block.text:
+                        yield StreamDelta(type="text", text=block.text)
+                return
+
             async with self.client.messages.stream(**kwargs) as stream:
                 current_tool_call = None
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { usePathname, useRouter } from "next/navigation";
 import { useChatStore } from "@/lib/stores/chat-store";
 import { api } from "@/lib/api";
 
@@ -28,6 +29,8 @@ interface GitHubRepo {
 
 export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
   const t = useTranslations("sidebar");
+  const router = useRouter();
+  const pathname = usePathname();
   const { chats, currentChat, fetchChats, selectChat, createChat, deleteChat } =
     useChatStore();
 
@@ -89,6 +92,9 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
 
   const handleNewChat = async () => {
     await createChat({ title: "New Chat" });
+    if (pathname !== "/") {
+      router.push("/");
+    }
     onCloseMobile?.();
   };
 
@@ -159,6 +165,9 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
     chat.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const isWorkspaceRoute = pathname === "/";
+  const isDriveRoute = pathname === "/drive";
+
   return (
     <>
       {mobileOpen && (
@@ -225,6 +234,31 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-1">
+          {(!isCollapsed || mobileOpen) && (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  router.push("/");
+                  onCloseMobile?.();
+                }}
+                className={`sidebar-item w-full text-left ${isWorkspaceRoute ? "active" : ""}`}
+              >
+                <span className="text-sm">Workspace</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  router.push("/drive");
+                  onCloseMobile?.();
+                }}
+                className={`sidebar-item w-full text-left ${isDriveRoute ? "active" : ""}`}
+              >
+                <span className="text-sm">{t("googleDrive")}</span>
+              </button>
+            </>
+          )}
+
           {filteredChats.slice(0, 50).map((chat) => (
             <ChatItem
               key={chat.id}
@@ -232,6 +266,9 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
               isActive={currentChat?.id === chat.id}
               onSelect={async () => {
                 await selectChat(chat.id);
+                if (pathname !== "/") {
+                  router.push("/");
+                }
                 onCloseMobile?.();
               }}
               onDelete={() => deleteChat(chat.id)}
@@ -241,6 +278,83 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
 
         {(!isCollapsed || mobileOpen) && (
           <div className="flex-shrink-0 max-h-[45vh] overflow-y-auto border-t border-border/50 p-3 md:p-4 space-y-4">
+            <div>
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                {t("integrations")}
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  router.push("/drive");
+                  onCloseMobile?.();
+                }}
+                className={`sidebar-item w-full text-left ${isDriveRoute ? "active" : ""}`}
+              >
+                <span className="text-sm">{t("googleDrive")}</span>
+                <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-secondary/70">
+                  {oauthStatus?.google ? "OAuth" : "Sin OAuth"}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowGithubPanel((prev) => !prev)}
+                className="sidebar-item w-full text-left"
+              >
+                <span className="text-sm">{t("github")}</span>
+                <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-secondary/70">
+                  {githubConnected ? "Conectado" : "Token"}
+                </span>
+              </button>
+
+              {showGithubPanel && (
+                <div className="mt-2 space-y-2 rounded-xl border border-border/60 bg-secondary/20 p-2.5">
+                  <input
+                    value={githubToken}
+                    onChange={(e) => setGithubToken(e.target.value)}
+                    placeholder="GitHub Personal Access Token"
+                    className="w-full px-3 py-2 rounded-lg bg-secondary/70 border border-border/50 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleGitHubTokenConnect}
+                      className="flex-1 py-2 px-3 rounded-lg bg-primary text-primary-foreground text-xs hover:opacity-90"
+                    >
+                      Conectar token
+                    </button>
+                    <button
+                      onClick={handleGitHubOAuthConnect}
+                      className="py-2 px-3 rounded-lg bg-accent text-foreground text-xs hover:opacity-90"
+                    >
+                      OAuth
+                    </button>
+                  </div>
+                  <button
+                    onClick={loadGitHubRepos}
+                    className="w-full py-2 px-3 rounded-lg bg-secondary/70 text-foreground text-xs hover:opacity-90"
+                  >
+                    {loadingRepos ? "Sincronizando repos..." : "Sincronizar repositorios"}
+                  </button>
+                  {githubError && <p className="text-xs text-red-500">{githubError}</p>}
+                  {githubRepos.length > 0 && (
+                    <div className="max-h-36 overflow-y-auto space-y-1 pt-1">
+                      {githubRepos.slice(0, 20).map((repo) => (
+                        <a
+                          key={repo.id}
+                          href={repo.html_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="block px-2 py-1.5 rounded-lg hover:bg-accent text-xs"
+                        >
+                          {repo.full_name}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div>
               <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
                 {t("projects")}
@@ -303,76 +417,6 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
                       {project.name}
                     </div>
                   ))}
-                </div>
-              )}
-            </div>
-
-            <div>
-              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                {t("integrations")}
-              </h3>
-              <a href="/drive" className="sidebar-item">
-                <span className="text-sm">{t("googleDrive")}</span>
-                <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-secondary/70">
-                  {oauthStatus?.google ? "OAuth" : "Sin OAuth"}
-                </span>
-              </a>
-
-              <button
-                type="button"
-                onClick={() => setShowGithubPanel((prev) => !prev)}
-                className="sidebar-item w-full text-left"
-              >
-                <span className="text-sm">{t("github")}</span>
-                <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-secondary/70">
-                  {githubConnected ? "Conectado" : "Token"}
-                </span>
-              </button>
-
-              {showGithubPanel && (
-                <div className="mt-2 space-y-2 rounded-xl border border-border/60 bg-secondary/20 p-2.5">
-                  <input
-                    value={githubToken}
-                    onChange={(e) => setGithubToken(e.target.value)}
-                    placeholder="GitHub Personal Access Token"
-                    className="w-full px-3 py-2 rounded-lg bg-secondary/70 border border-border/50 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleGitHubTokenConnect}
-                      className="flex-1 py-2 px-3 rounded-lg bg-primary text-primary-foreground text-xs hover:opacity-90"
-                    >
-                      Conectar token
-                    </button>
-                    <button
-                      onClick={handleGitHubOAuthConnect}
-                      className="py-2 px-3 rounded-lg bg-accent text-foreground text-xs hover:opacity-90"
-                    >
-                      OAuth
-                    </button>
-                  </div>
-                  <button
-                    onClick={loadGitHubRepos}
-                    className="w-full py-2 px-3 rounded-lg bg-secondary/70 text-foreground text-xs hover:opacity-90"
-                  >
-                    {loadingRepos ? "Sincronizando repos..." : "Sincronizar repositorios"}
-                  </button>
-                  {githubError && <p className="text-xs text-red-500">{githubError}</p>}
-                  {githubRepos.length > 0 && (
-                    <div className="max-h-36 overflow-y-auto space-y-1 pt-1">
-                      {githubRepos.slice(0, 20).map((repo) => (
-                        <a
-                          key={repo.id}
-                          href={repo.html_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="block px-2 py-1.5 rounded-lg hover:bg-accent text-xs"
-                        >
-                          {repo.full_name}
-                        </a>
-                      ))}
-                    </div>
-                  )}
                 </div>
               )}
             </div>

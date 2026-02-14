@@ -94,7 +94,7 @@ export default function Home() {
         </button>
       </div>
 
-      <div className="fixed bottom-6 left-6 hidden lg:flex items-center gap-4 text-xs text-muted-foreground/60">
+      <div className="fixed top-20 right-6 hidden lg:flex items-center gap-4 text-xs text-muted-foreground/60 bg-card/70 border border-border/50 rounded-xl px-3 py-2 backdrop-blur-md z-30">
         <span className="flex items-center gap-1.5">
           <kbd className="px-1.5 py-0.5 rounded bg-muted/50 font-mono text-[10px]">Ctrl</kbd>
           <span>+</span>

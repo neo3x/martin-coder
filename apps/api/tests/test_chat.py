@@ -75,7 +75,8 @@ class TestChatCRUD:
             msg = Message(
                 chat_id=chat.id,
                 role=role,
-                content=f"Test message from {role.value}"
+                content=f"Test message from {role.value}",
+                message_metadata={"source": "test"}
             )
             db_session.add(msg)
         await db_session.commit()
@@ -88,6 +89,7 @@ class TestChatCRUD:
         data = response.json()
         assert data["title"] == "Test Chat"
         assert len(data["messages"]) == 2
+        assert data["messages"][0]["metadata"] == {"source": "test"}
 
     @pytest.mark.asyncio
     async def test_delete_chat(

@@ -4,7 +4,7 @@ Chat Schemas
 
 from datetime import datetime
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 from app.models.chat import MessageRole
 
@@ -31,11 +31,10 @@ class MessageResponse(MessageBase):
     prompt_tokens: int = 0
     completion_tokens: int = 0
     model: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = Field(default=None, alias="message_metadata")
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class ChatBase(BaseModel):
@@ -76,8 +75,7 @@ class ChatResponse(ChatBase):
     updated_at: datetime
     messages: Optional[List[MessageResponse]] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ChatCompletionRequest(BaseModel):
