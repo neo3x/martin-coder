@@ -47,7 +47,7 @@ for plugin in BUILTIN_PLUGINS:
     plugin_manager.register(plugin)
 
 
-@router.get("/", response_model=List[PluginInfoResponse])
+@router.get("", response_model=List[PluginInfoResponse])
 async def list_plugins(
     current_user: User = Depends(get_current_user)
 ):

@@ -47,10 +47,8 @@ class OpenAIProvider(BaseProvider):
         return self.api_key is not None and len(self.api_key) > 0
 
     async def get_models(self) -> List[str]:
-        """Get available OpenAI models"""
-        if await self.is_available():
-            return self.available_models
-        return []
+        """Get available OpenAI models (always returns catalogue for UI display)"""
+        return self.available_models
 
     def _format_messages(self, messages: List[AIMessage]) -> List[Dict[str, Any]]:
         """Format messages for OpenAI API"""

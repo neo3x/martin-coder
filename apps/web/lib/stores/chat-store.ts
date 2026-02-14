@@ -35,7 +35,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   streamingContent: "",
 
   fetchChats: async () => {
-    const chats = await api.get<Chat[]>("/chat/");
+    const chats = await api.get<Chat[]>("/chat");
     set({ chats });
   },
 
@@ -49,7 +49,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   createChat: async (payload) => {
     const { selectedProvider, selectedModel } = useModelStore.getState();
-    const chat = await api.post<Chat>("/chat/", {
+    const chat = await api.post<Chat>("/chat", {
       title: payload.title,
       project_id: payload.project_id,
       ai_provider: selectedProvider,

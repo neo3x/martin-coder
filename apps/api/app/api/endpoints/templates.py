@@ -45,7 +45,7 @@ for template in BUILTIN_TEMPLATES:
     template_manager.register(template)
 
 
-@router.get("/", response_model=List[TemplateInfo])
+@router.get("", response_model=List[TemplateInfo])
 async def list_templates(
     language: Optional[str] = None,
     framework: Optional[str] = None,
