@@ -25,8 +25,17 @@ def validate_path(base_path: Optional[str], relative_path: str) -> Tuple[Optiona
     """
     try:
         if base_path:
-            base = Path(base_path).resolve()
-            full_path = (base / relative_path).resolve()
+            base = Path(os.path.realpath(base_path))
+            full_path = Path(os.path.realpath(base / relative_path))
+
+            # Reject symlinks that point outside the base directory
+            raw_path = base / relative_path
+            if raw_path.exists() and raw_path.is_symlink():
+                link_target = Path(os.path.realpath(raw_path))
+                try:
+                    link_target.relative_to(base)
+                except ValueError:
+                    return None, f"Symlink target outside base directory: {relative_path}"
 
             # Check if the resolved path is under the base path
             try:

@@ -31,7 +31,7 @@ class MessageResponse(MessageBase):
     prompt_tokens: int = 0
     completion_tokens: int = 0
     model: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = Field(default=None, alias="message_metadata")
+    metadata: Optional[Dict[str, Any]] = Field(default=None, validation_alias="message_metadata")
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)

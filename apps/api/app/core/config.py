@@ -57,6 +57,18 @@ class Settings(BaseSettings):
     FIRST_ADMIN_EMAIL: str = Field(default="admin@example.com")
     FIRST_ADMIN_PASSWORD: str = Field(default="changeme123")
 
+    @field_validator("FIRST_ADMIN_PASSWORD")
+    @classmethod
+    def admin_password_not_default(cls, v: str) -> str:
+        if v == "changeme123":
+            import warnings
+            warnings.warn(
+                "FIRST_ADMIN_PASSWORD is the default value. "
+                "Set a strong password via FIRST_ADMIN_PASSWORD env var before deploying.",
+                stacklevel=2,
+            )
+        return v
+
     # Account lockout
     MAX_LOGIN_ATTEMPTS: int = Field(default=5)
     LOCKOUT_DURATION_MINUTES: int = Field(default=15)

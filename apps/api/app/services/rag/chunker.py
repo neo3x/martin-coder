@@ -176,7 +176,7 @@ class CodeChunker:
                     chunk_content, file_path, language, start_line, elem
                 )
                 chunks.extend(sub_chunks)
-            elif len(chunk_content) >= self.MIN_CHUNK_SIZE:
+            elif chunk_content.strip():
                 chunk_type = ChunkType.CLASS if "class" in elem["type"] else ChunkType.FUNCTION
                 chunks.append(CodeChunk(
                     content=chunk_content,

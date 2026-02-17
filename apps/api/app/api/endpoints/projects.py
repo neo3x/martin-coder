@@ -2,6 +2,7 @@
 Project Management Endpoints
 """
 
+import logging
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +20,7 @@ from app.schemas.project import (
 )
 from app.services.project import ProjectService
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -72,8 +74,11 @@ async def create_project(
 
     # Analyze project if path is provided
     if project.local_path or project.git_url:
-        project_service = ProjectService(db)
-        await project_service.analyze_project(project)
+        try:
+            project_service = ProjectService(db)
+            await project_service.analyze_project(project)
+        except (ValueError, OSError) as e:
+            logger.warning("Project analysis skipped: %s", e)
 
     return project
 

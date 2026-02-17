@@ -40,8 +40,12 @@ async def _get_redis():
 
 
 async def _check_lockout(email: str) -> None:
-    """Raise 429 if the account is locked out."""
-    r = await _get_redis()
+    """Raise 429 if the account is locked out.  Degrades gracefully when Redis is unavailable."""
+    try:
+        r = await _get_redis()
+    except Exception:
+        logger.warning("Redis unavailable — skipping lockout check")
+        return
     try:
         attempts = await r.get(f"login_attempts:{email}")
         if attempts and int(attempts) >= settings.MAX_LOGIN_ATTEMPTS:
@@ -49,28 +53,53 @@ async def _check_lockout(email: str) -> None:
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=f"Account temporarily locked. Try again in {settings.LOCKOUT_DURATION_MINUTES} minutes.",
             )
+    except HTTPException:
+        raise
+    except Exception:
+        logger.warning("Redis unavailable — skipping lockout check")
     finally:
-        await r.aclose()
+        try:
+            await r.aclose()
+        except Exception:
+            pass
 
 
 async def _record_failed_attempt(email: str) -> None:
-    """Increment failed-attempt counter with TTL."""
-    r = await _get_redis()
+    """Increment failed-attempt counter with TTL.  Degrades gracefully when Redis is unavailable."""
+    try:
+        r = await _get_redis()
+    except Exception:
+        logger.warning("Redis unavailable — skipping failed attempt recording")
+        return
     try:
         key = f"login_attempts:{email}"
         await r.incr(key)
         await r.expire(key, settings.LOCKOUT_DURATION_MINUTES * 60)
+    except Exception:
+        logger.warning("Redis unavailable — skipping failed attempt recording")
     finally:
-        await r.aclose()
+        try:
+            await r.aclose()
+        except Exception:
+            pass
 
 
 async def _clear_attempts(email: str) -> None:
-    """Clear failed-attempt counter on successful login."""
-    r = await _get_redis()
+    """Clear failed-attempt counter on successful login.  Degrades gracefully when Redis is unavailable."""
+    try:
+        r = await _get_redis()
+    except Exception:
+        logger.warning("Redis unavailable — skipping attempt clearing")
+        return
     try:
         await r.delete(f"login_attempts:{email}")
+    except Exception:
+        logger.warning("Redis unavailable — skipping attempt clearing")
     finally:
-        await r.aclose()
+        try:
+            await r.aclose()
+        except Exception:
+            pass
 
 
 # ---------------------------------------------------------------------------

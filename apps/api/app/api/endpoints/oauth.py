@@ -38,16 +38,30 @@ async def _get_redis():
 
 async def _store_oauth_state(state: str, data: dict) -> None:
     """Persist OAuth state in Redis with a 10-minute TTL."""
-    r = await _get_redis()
+    try:
+        r = await _get_redis()
+    except Exception:
+        logger.warning("Redis unavailable — cannot store OAuth state")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="OAuth state storage unavailable",
+        )
     try:
         await r.setex(f"oauth_state:{state}", 600, _json.dumps(data))
     finally:
-        await r.aclose()
+        try:
+            await r.aclose()
+        except Exception:
+            pass
 
 
 async def _pop_oauth_state(state: str) -> Optional[dict]:
     """Retrieve and delete OAuth state from Redis."""
-    r = await _get_redis()
+    try:
+        r = await _get_redis()
+    except Exception:
+        logger.warning("Redis unavailable — cannot verify OAuth state")
+        return None
     try:
         key = f"oauth_state:{state}"
         raw = await r.get(key)
@@ -55,8 +69,14 @@ async def _pop_oauth_state(state: str) -> Optional[dict]:
             await r.delete(key)
             return _json.loads(raw)
         return None
+    except Exception:
+        logger.warning("Redis unavailable — cannot verify OAuth state")
+        return None
     finally:
-        await r.aclose()
+        try:
+            await r.aclose()
+        except Exception:
+            pass
 
 
 class GitHubTokenConnectRequest(BaseModel):

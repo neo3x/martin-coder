@@ -8,7 +8,10 @@ import json
 import logging
 import asyncio
 
+from sqlalchemy import select
+
 from app.core.security import decode_token
+from app.core.database import async_session_maker
 
 logger = logging.getLogger(__name__)
 
@@ -155,6 +158,21 @@ def setup_websocket(app: FastAPI):
                 manager.disconnect(websocket, user_id)
 
 
+async def _user_owns_chat(user_id: str, chat_id: str) -> bool:
+    """Verify the user owns the given chat (database check)."""
+    try:
+        from app.models.chat import Chat
+
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(Chat.id).where(Chat.id == chat_id, Chat.user_id == user_id)
+            )
+            return result.scalar_one_or_none() is not None
+    except Exception:
+        logger.warning("Could not verify chat ownership for chat %s", chat_id)
+        return False
+
+
 async def handle_message(websocket: WebSocket, user_id: str, data: dict):
     """Handle incoming WebSocket message"""
     msg_type = data.get("type")
@@ -165,6 +183,12 @@ async def handle_message(websocket: WebSocket, user_id: str, data: dict):
     elif msg_type == "join_chat":
         chat_id = data.get("chat_id")
         if chat_id:
+            if not await _user_owns_chat(user_id, chat_id):
+                await websocket.send_json({
+                    "type": "error",
+                    "message": "Chat not found or access denied"
+                })
+                return
             manager.join_chat(websocket, chat_id)
             await websocket.send_json({
                 "type": "joined_chat",

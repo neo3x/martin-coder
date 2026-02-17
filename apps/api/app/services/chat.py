@@ -300,15 +300,22 @@ class ChatService:
 
         return prompt
 
+    MAX_TOOL_CALL_DEPTH = 5
+
     async def _handle_tool_calls(
         self,
         chat: Chat,
         response,
         messages: List[Dict],
         tool_registry,
-        system_prompt: str
+        system_prompt: str,
+        depth: int = 0,
     ):
-        """Handle tool calls and continue conversation"""
+        """Handle tool calls and continue conversation (with depth limit)."""
+        if depth >= self.MAX_TOOL_CALL_DEPTH:
+            logger.warning("Tool call depth limit (%d) reached for chat %s", self.MAX_TOOL_CALL_DEPTH, chat.id)
+            return response
+
         # Execute each tool call
         tool_results = []
 
@@ -338,9 +345,22 @@ class ChatService:
             })
 
         # Continue conversation
-        return await ai_router.complete(
+        new_response = await ai_router.complete(
             messages=[AIMessage(**m) for m in messages],
             provider=chat.ai_provider,
             model=chat.ai_model,
             system_prompt=system_prompt
         )
+
+        # Recursively handle if the AI wants more tool calls
+        if new_response.tool_calls and tool_registry:
+            return await self._handle_tool_calls(
+                chat=chat,
+                response=new_response,
+                messages=messages,
+                tool_registry=tool_registry,
+                system_prompt=system_prompt,
+                depth=depth + 1,
+            )
+
+        return new_response
