@@ -4,11 +4,12 @@ Test Configuration and Fixtures
 
 import os
 
-# Ensure SECRET_KEY is set before any app imports
+# Ensure SECRET_KEY and DATABASE_URL are set before any app imports
 os.environ.setdefault(
     "SECRET_KEY",
     "test-secret-key-for-unit-tests-must-be-at-least-32-chars-long"
 )
+os.environ.setdefault("DATABASE_URL", "sqlite:///./test.db")
 
 import pytest
 import pytest_asyncio
