@@ -1,21 +1,4 @@
 import { spawn, type ChildProcess } from 'child_process'
-import {
-  createConnection,
-  InitializeRequest,
-  DidOpenTextDocumentNotification,
-  TextDocumentSyncKind,
-  CompletionRequest,
-  HoverRequest,
-  DefinitionRequest,
-  PublishDiagnosticsNotification,
-} from 'vscode-languageserver-protocol'
-import { createMessageConnection, StreamMessageReader, StreamMessageWriter } from 'vscode-jsonrpc/node.js'
-
-export interface LSPServerConfig {
-  command: string
-  args: string[]
-  language: string
-}
 
 export interface Diagnostic {
   range: {
@@ -51,6 +34,12 @@ export interface Location {
   }
 }
 
+export interface LSPServerConfig {
+  command: string
+  args: string[]
+  language: string
+}
+
 const LANGUAGE_SERVER_CONFIGS: Record<string, LSPServerConfig> = {
   typescript: {
     language: 'typescript',
@@ -79,13 +68,50 @@ const LANGUAGE_SERVER_CONFIGS: Record<string, LSPServerConfig> = {
   },
 }
 
+interface PendingRequest {
+  resolve: (value: unknown) => void
+  reject: (reason: unknown) => void
+}
+
 interface ServerInstance {
   process: ChildProcess
-  connection: ReturnType<typeof createMessageConnection>
   language: string
   workspacePath: string
   initialized: boolean
   diagnostics: Map<string, Diagnostic[]>
+  requestId: number
+  pendingRequests: Map<number, PendingRequest>
+  buffer: string
+}
+
+function buildLSPMessage(content: string): string {
+  const contentBytes = Buffer.byteLength(content, 'utf-8')
+  return `Content-Length: ${contentBytes}\r\n\r\n${content}`
+}
+
+function parseMessages(buffer: string): { messages: string[]; remaining: string } {
+  const messages: string[] = []
+  let remaining = buffer
+
+  while (true) {
+    const headerEnd = remaining.indexOf('\r\n\r\n')
+    if (headerEnd === -1) break
+
+    const header = remaining.slice(0, headerEnd)
+    const lengthMatch = header.match(/Content-Length:\s*(\d+)/i)
+    if (!lengthMatch) break
+
+    const length = parseInt(lengthMatch[1], 10)
+    const bodyStart = headerEnd + 4
+    const bodyEnd = bodyStart + length
+
+    if (remaining.length < bodyEnd) break
+
+    messages.push(remaining.slice(bodyStart, bodyEnd))
+    remaining = remaining.slice(bodyEnd)
+  }
+
+  return { messages, remaining }
 }
 
 export class LSPManager {
@@ -97,96 +123,175 @@ export class LSPManager {
       throw new Error(`No LSP server configured for language: ${language}`)
     }
 
-    // Stop existing server if running
-    if (this.servers.has(language)) {
-      await this.stopServer(language)
-    }
-
     const key = `${language}:${workspacePath}`
 
+    // Stop existing server if running
+    if (this.servers.has(key)) {
+      await this.stopServer(language, workspacePath)
+    }
+
+    const serverProcess = spawn(config.command, config.args, {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      cwd: workspacePath,
+    })
+
+    const instance: ServerInstance = {
+      process: serverProcess,
+      language,
+      workspacePath,
+      initialized: false,
+      diagnostics: new Map(),
+      requestId: 1,
+      pendingRequests: new Map(),
+      buffer: '',
+    }
+
+    serverProcess.stdout!.on('data', (data: Buffer) => {
+      instance.buffer += data.toString('utf-8')
+      const { messages, remaining } = parseMessages(instance.buffer)
+      instance.buffer = remaining
+
+      for (const msgStr of messages) {
+        try {
+          const msg = JSON.parse(msgStr) as {
+            id?: number
+            method?: string
+            params?: unknown
+            result?: unknown
+            error?: unknown
+          }
+
+          if (msg.id !== undefined && instance.pendingRequests.has(msg.id)) {
+            const pending = instance.pendingRequests.get(msg.id)!
+            instance.pendingRequests.delete(msg.id)
+
+            if (msg.error) {
+              pending.reject(msg.error)
+            } else {
+              pending.resolve(msg.result)
+            }
+          } else if (msg.method === 'textDocument/publishDiagnostics') {
+            const params = msg.params as { uri: string; diagnostics: Diagnostic[] }
+            instance.diagnostics.set(params.uri, params.diagnostics)
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      }
+    })
+
+    serverProcess.stderr!.on('data', (data: Buffer) => {
+      // Log LSP server stderr at debug level
+      const text = data.toString()
+      if (process.env.LSP_DEBUG) {
+        console.debug(`[LSP:${language}] stderr:`, text.slice(0, 200))
+      }
+    })
+
+    serverProcess.on('error', (err) => {
+      console.error(`[LSP] Server error for ${language}:`, err)
+      this.servers.delete(key)
+    })
+
+    serverProcess.on('exit', (code) => {
+      console.log(`[LSP] Server exited for ${language} with code ${code}`)
+      this.servers.delete(key)
+    })
+
+    this.servers.set(key, instance)
+
+    // Send initialize request
     try {
-      const serverProcess = spawn(config.command, config.args, {
-        stdio: ['pipe', 'pipe', 'pipe'],
-        cwd: workspacePath,
-      })
-
-      const reader = new StreamMessageReader(serverProcess.stdout!)
-      const writer = new StreamMessageWriter(serverProcess.stdin!)
-      const connection = createMessageConnection(reader, writer)
-
-      const diagnosticsMap = new Map<string, Diagnostic[]>()
-
-      connection.onNotification(PublishDiagnosticsNotification.type, (params) => {
-        diagnosticsMap.set(params.uri, params.diagnostics as Diagnostic[])
-      })
-
-      connection.listen()
-
-      // Initialize the LSP server
-      await connection.sendRequest(InitializeRequest.type, {
+      await this.sendRequest(instance, 'initialize', {
         processId: process.pid,
         rootUri: `file://${workspacePath}`,
         capabilities: {
           textDocument: {
             synchronization: {
-              didOpen: true,
-              didChange: true,
-              didClose: true,
+              dynamicRegistration: false,
+              willSave: false,
+              didSave: false,
+              willSaveWaitUntil: false,
             },
             completion: {
+              dynamicRegistration: false,
               completionItem: {
-                documentationFormat: ['markdown', 'plaintext'],
+                snippetSupport: false,
+                documentationFormat: ['plaintext'],
               },
             },
-            hover: {},
-            definition: {},
-            publishDiagnostics: {
-              relatedInformation: true,
+            hover: {
+              dynamicRegistration: false,
+              contentFormat: ['plaintext'],
             },
+            definition: { dynamicRegistration: false },
+            publishDiagnostics: { relatedInformation: true },
           },
-          workspace: {
-            workspaceFolders: true,
-          },
+          workspace: { workspaceFolders: false },
         },
-        workspaceFolders: [
-          {
-            uri: `file://${workspacePath}`,
-            name: workspacePath.split('/').pop() || 'workspace',
-          },
-        ],
+        workspaceFolders: null,
       })
 
-      serverProcess.on('error', (err) => {
-        console.error(`[LSP] Server error for ${language}:`, err)
-        this.servers.delete(key)
-      })
-
-      serverProcess.on('exit', (code) => {
-        console.log(`[LSP] Server exited for ${language} with code ${code}`)
-        this.servers.delete(key)
-      })
-
-      this.servers.set(key, {
-        process: serverProcess,
-        connection,
-        language,
-        workspacePath,
-        initialized: true,
-        diagnostics: diagnosticsMap,
-      })
+      this.sendNotification(instance, 'initialized', {})
+      instance.initialized = true
 
       console.log(`[LSP] Started ${language} server for ${workspacePath}`)
     } catch (err) {
-      throw new Error(`Failed to start LSP server for ${language}: ${String(err)}`)
+      serverProcess.kill()
+      this.servers.delete(key)
+      throw new Error(`Failed to initialize LSP server for ${language}: ${String(err)}`)
     }
   }
 
+  private sendRequest(
+    instance: ServerInstance,
+    method: string,
+    params: unknown
+  ): Promise<unknown> {
+    return new Promise((resolve, reject) => {
+      const id = instance.requestId++
+      const message = JSON.stringify({ jsonrpc: '2.0', id, method, params })
+      const lspMessage = buildLSPMessage(message)
+
+      instance.pendingRequests.set(id, { resolve, reject })
+
+      instance.process.stdin!.write(lspMessage)
+
+      // Timeout after 10 seconds
+      setTimeout(() => {
+        if (instance.pendingRequests.has(id)) {
+          instance.pendingRequests.delete(id)
+          reject(new Error(`LSP request timeout: ${method}`))
+        }
+      }, 10000)
+    })
+  }
+
+  private sendNotification(instance: ServerInstance, method: string, params: unknown): void {
+    const message = JSON.stringify({ jsonrpc: '2.0', method, params })
+    const lspMessage = buildLSPMessage(message)
+    instance.process.stdin!.write(lspMessage)
+  }
+
+  private openDocument(instance: ServerInstance, fileUri: string, languageId: string, content: string): void {
+    this.sendNotification(instance, 'textDocument/didOpen', {
+      textDocument: {
+        uri: fileUri,
+        languageId,
+        version: 1,
+        text: content,
+      },
+    })
+  }
+
   async stopServer(language: string, workspacePath?: string): Promise<void> {
-    // Find all servers for the language if no workspace specified
     const keysToStop: string[] = []
 
     for (const [key, server] of this.servers.entries()) {
-      if (server.language === language && (!workspacePath || server.workspacePath === workspacePath)) {
+      if (
+        server.language === language &&
+        (!workspacePath || server.workspacePath === workspacePath)
+      ) {
         keysToStop.push(key)
       }
     }
@@ -195,7 +300,6 @@ export class LSPManager {
       const server = this.servers.get(key)
       if (server) {
         try {
-          server.connection.dispose()
           server.process.kill()
         } catch {
           // Ignore errors during cleanup
@@ -208,7 +312,10 @@ export class LSPManager {
 
   private getServer(language: string, workspacePath?: string): ServerInstance | undefined {
     for (const server of this.servers.values()) {
-      if (server.language === language && (!workspacePath || server.workspacePath === workspacePath)) {
+      if (
+        server.language === language &&
+        (!workspacePath || server.workspacePath === workspacePath)
+      ) {
         return server
       }
     }
@@ -221,26 +328,14 @@ export class LSPManager {
     content: string
   ): Promise<Diagnostic[]> {
     const server = this.getServer(language)
-
-    if (!server || !server.initialized) {
-      return []
-    }
+    if (!server || !server.initialized) return []
 
     const fileUri = `file://${filePath}`
 
     try {
-      server.connection.sendNotification(DidOpenTextDocumentNotification.type, {
-        textDocument: {
-          uri: fileUri,
-          languageId: language,
-          version: 1,
-          text: content,
-        },
-      })
-
-      // Give the server time to process
-      await new Promise((resolve) => setTimeout(resolve, 500))
-
+      this.openDocument(server, fileUri, language, content)
+      // Wait for diagnostics to arrive
+      await new Promise((resolve) => setTimeout(resolve, 800))
       return server.diagnostics.get(fileUri) || []
     } catch (err) {
       console.error(`[LSP] Error getting diagnostics:`, err)
@@ -256,40 +351,27 @@ export class LSPManager {
     character: number
   ): Promise<CompletionItem[]> {
     const server = this.getServer(language)
-
-    if (!server || !server.initialized) {
-      return []
-    }
+    if (!server || !server.initialized) return []
 
     const fileUri = `file://${filePath}`
 
     try {
-      server.connection.sendNotification(DidOpenTextDocumentNotification.type, {
-        textDocument: {
-          uri: fileUri,
-          languageId: language,
-          version: 1,
-          text: content,
-        },
-      })
+      this.openDocument(server, fileUri, language, content)
 
-      const result = await server.connection.sendRequest(CompletionRequest.type, {
+      const result = (await this.sendRequest(server, 'textDocument/completion', {
         textDocument: { uri: fileUri },
         position: { line, character },
-      })
+      })) as { items?: CompletionItem[] } | CompletionItem[] | null
 
       if (!result) return []
 
-      const items = Array.isArray(result) ? result : result.items || []
+      const items = Array.isArray(result) ? result : (result as { items?: CompletionItem[] }).items || []
       return items.map((item) => ({
         label: item.label,
         kind: item.kind,
         detail: item.detail,
-        documentation:
-          typeof item.documentation === 'string'
-            ? item.documentation
-            : item.documentation?.value,
-        insertText: item.insertText || item.label,
+        documentation: typeof item.documentation === 'string' ? item.documentation : undefined,
+        insertText: (item.insertText as string | undefined) || item.label,
       }))
     } catch (err) {
       console.error(`[LSP] Error getting completions:`, err)
@@ -305,37 +387,43 @@ export class LSPManager {
     character: number
   ): Promise<HoverInfo | null> {
     const server = this.getServer(language)
-
-    if (!server || !server.initialized) {
-      return null
-    }
+    if (!server || !server.initialized) return null
 
     const fileUri = `file://${filePath}`
 
     try {
-      server.connection.sendNotification(DidOpenTextDocumentNotification.type, {
-        textDocument: {
-          uri: fileUri,
-          languageId: language,
-          version: 1,
-          text: content,
-        },
-      })
+      this.openDocument(server, fileUri, language, content)
 
-      const result = await server.connection.sendRequest(HoverRequest.type, {
+      const result = (await this.sendRequest(server, 'textDocument/hover', {
         textDocument: { uri: fileUri },
         position: { line, character },
-      })
+      })) as {
+        contents:
+          | string
+          | string[]
+          | { kind: string; value: string }
+          | Array<{ language: string; value: string }>
+        range?: HoverInfo['range']
+      } | null
 
       if (!result) return null
 
-      const contents = typeof result.contents === 'string'
-        ? result.contents
-        : Array.isArray(result.contents)
-          ? result.contents.map((c) => (typeof c === 'string' ? c : c.value))
-          : (result.contents as { value: string }).value
+      const contentsRaw = result.contents
+      let contentsStr: string | string[]
 
-      return { contents, range: result.range as HoverInfo['range'] }
+      if (typeof contentsRaw === 'string') {
+        contentsStr = contentsRaw
+      } else if (Array.isArray(contentsRaw)) {
+        contentsStr = contentsRaw.map((c) =>
+          typeof c === 'string' ? c : (c as { value: string }).value
+        )
+      } else if (contentsRaw && typeof contentsRaw === 'object' && 'value' in contentsRaw) {
+        contentsStr = (contentsRaw as { value: string }).value
+      } else {
+        contentsStr = String(contentsRaw)
+      }
+
+      return { contents: contentsStr, range: result.range }
     } catch (err) {
       console.error(`[LSP] Error getting hover:`, err)
       return null
@@ -350,35 +438,22 @@ export class LSPManager {
     character: number
   ): Promise<Location[]> {
     const server = this.getServer(language)
-
-    if (!server || !server.initialized) {
-      return []
-    }
+    if (!server || !server.initialized) return []
 
     const fileUri = `file://${filePath}`
 
     try {
-      server.connection.sendNotification(DidOpenTextDocumentNotification.type, {
-        textDocument: {
-          uri: fileUri,
-          languageId: language,
-          version: 1,
-          text: content,
-        },
-      })
+      this.openDocument(server, fileUri, language, content)
 
-      const result = await server.connection.sendRequest(DefinitionRequest.type, {
+      const result = (await this.sendRequest(server, 'textDocument/definition', {
         textDocument: { uri: fileUri },
         position: { line, character },
-      })
+      })) as Location | Location[] | null
 
       if (!result) return []
 
       const locations = Array.isArray(result) ? result : [result]
-      return locations.map((loc) => ({
-        uri: (loc as Location).uri,
-        range: (loc as Location).range,
-      }))
+      return locations.map((loc) => ({ uri: loc.uri, range: loc.range }))
     } catch (err) {
       console.error(`[LSP] Error getting definition:`, err)
       return []
