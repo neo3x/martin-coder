@@ -256,9 +256,9 @@ if "%REBUILD_API%"=="1" set "SERVICES=!SERVICES! api"
 if "%REBUILD_WEB%"=="1" set "SERVICES=!SERVICES! web"
 
 if defined SERVICES (
-    call :print_info "Running: %DOCKER_COMPOSE% up -d --build!SERVICES!"
-    %DOCKER_COMPOSE% up -d --build !SERVICES!
-    exit /b %errorlevel%
+    call :print_info "Running: !DOCKER_COMPOSE! up -d --build!SERVICES!"
+    !DOCKER_COMPOSE! up -d --build !SERVICES!
+    exit /b !errorlevel!
 )
 
 call :print_info "Running: %DOCKER_COMPOSE% up -d"
@@ -768,17 +768,17 @@ if %errorlevel% equ 0 (
 )
 
 call :detect_docker_compose
-if %errorlevel% equ 0 (
+if !errorlevel! equ 0 (
     call :print_info "Rebuilding Docker containers..."
-    %DOCKER_COMPOSE% build
-    if %errorlevel% neq 0 (
+    !DOCKER_COMPOSE! build
+    if !errorlevel! neq 0 (
         call :print_error "Docker build failed"
         exit /b 1
     )
 
     set /p "restart_now=Restart services now? (y/N): "
     if /i "!restart_now!"=="y" (
-        %DOCKER_COMPOSE% up -d
+        !DOCKER_COMPOSE! up -d
         call :wait_health
     )
 )
