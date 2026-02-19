@@ -7,6 +7,117 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.0] - 2026-02-19 — Complete TypeScript Rewrite
+
+> **Breaking change**: Full rewrite from Python/FastAPI to TypeScript/Bun.
+> Python code preserved in `_python_backup/` for reference.
+
+### ⚡ Architecture — Total Migration
+
+- **Runtime**: Python → **Bun** (TypeScript-native, 3-5x faster startup)
+- **HTTP Framework**: FastAPI → **Hono** (ultra-fast, type-safe, OpenAPI-ready)
+- **Database**: PostgreSQL + Redis → **SQLite** (via Drizzle ORM, zero infrastructure dependencies)
+- **AI SDK**: LangChain (Python) → **Vercel AI SDK** (TypeScript-first, 75+ providers)
+- **Monorepo**: Single repo → **Bun workspaces + Turbo** pipeline
+- **Package structure**: `apps/` → `packages/` (api, web, cli, shared)
+
+### ✨ New Features — Feature parity with opencode
+
+#### Agent System
+- Added structured **build agent** — full access: read/write files, execute bash, git operations, web search
+- Added structured **plan agent** — read-only: analyze, search, review (no writes, no execution)
+- Agents are selectable per session; defaults to `build`
+- Custom agent definition support via config
+
+#### LSP Integration (Language Server Protocol)
+- `LSPManager` class managing server lifecycles
+- Support for **TypeScript** (`typescript-language-server`), **Python** (`pyright`), **Rust** (`rust-analyzer`), **Go** (`gopls`)
+- REST endpoints: `/api/v1/lsp/diagnostics`, `/completions`, `/hover`, `/definition`
+- Real-time error/warning diagnostics per file
+- Auto-detects installed LSP servers; graceful fallback when unavailable
+
+#### MCP Support (Model Context Protocol)
+- `MCPManager` class for registering/managing MCP servers
+- REST endpoints: `/api/v1/mcp/servers`, `/mcp/tools`, `/mcp/tools/:server/:tool`
+- Connect any MCP-compatible tool server
+- Standard protocol — compatible with Claude Desktop, opencode, and any MCP client
+
+#### AI Providers — Expanded
+| Provider | Before | After |
+|---|---|---|
+| Anthropic Claude | ✅ | ✅ claude-opus-4-6, sonnet-4-5, haiku-4-5 |
+| OpenAI | ✅ | ✅ gpt-4o, gpt-4-turbo, gpt-3.5-turbo |
+| **Google Gemini** | ❌ | ✅ gemini-2.0-flash, gemini-1.5-pro |
+| Ollama | ✅ | ✅ improved, auto-detect models |
+| LM Studio | ✅ | ✅ OpenAI-compatible endpoint |
+| 70+ via AI SDK | ❌ | ✅ any provider supported by ai package |
+
+#### Session Management (replaces "chats")
+- Auto-compaction at **90% context limit** — summarizes older messages automatically, never loses context
+- Per-session **cost tracking in USD** (not just tokens)
+- Multiple parallel sessions supported
+- Session persistence in SQLite with full message history
+- `POST /api/v1/sessions/:id/messages` streams via SSE (Server-Sent Events)
+
+#### Cost Tracking
+- Every message tracks `costUsd` (input + output cost)
+- Session-level `totalCost` accumulates automatically
+- Cost calculation per model (accurate pricing tables)
+
+#### Tool System — Expanded
+- `readFile`, `writeFile`, `editFile`, `listDirectory`, `searchFiles`
+- `executeBash` — 30+ blocked dangerous patterns, path validation
+- `gitStatus`, `gitDiff`, `gitCommit`, `gitLog`
+- `installDependencies` — injection-safe with package name validation
+- `webSearch` — web search integration
+- `codeSearch` — semantic search across project files
+
+#### OpenAPI Spec
+- Auto-generated OpenAPI 3.0 spec at `GET /openapi.json`
+- All routes documented with request/response schemas
+- Generated from Hono route definitions (always in sync)
+
+### 🗃️ Database Changes
+
+- **Removed**: PostgreSQL, Redis, ChromaDB (zero external dependencies)
+- **Added**: SQLite via Drizzle ORM (file at `./data/martin-coder.db`)
+- **Renamed**: `chats` table → `sessions` (with `agentName`, `totalCost`, `autoCompacted` fields)
+- **Added**: `messages.costUsd` column
+- **Added**: `plugins` table
+- Schema migrations managed by Drizzle Kit
+
+### 📦 New Packages
+
+- **`@martin-coder/api`** — Hono + Bun server (replaces `apps/api` Python)
+- **`@martin-coder/shared`** — Shared TypeScript types used by all packages
+- **`@martin-coder/cli`** — TypeScript CLI (replaces `apps/cli` Python)
+- **`packages/web`** — Next.js (migrated from `apps/web`, updated API client)
+
+### 🔧 Infrastructure Changes
+
+- **Removed**: Docker required for running (now optional for deployment only)
+- **Added**: `bun install && bun dev` — single command to start everything
+- **Added**: `turbo.json` — parallel builds, caching, task orchestration
+- **Added**: `package.json` root workspace config
+- **Added**: `tsconfig.json` root TypeScript config (strict mode)
+- **Updated**: `.env.example` — simplified, PostgreSQL/Redis vars removed
+
+### 🗂️ Python Backup
+
+All Python code preserved at `_python_backup/`:
+- `_python_backup/api/` — FastAPI backend
+- `_python_backup/cli/` — Python CLI
+- `_python_backup/docker-compose.yml` — original Docker configuration
+
+### Changed
+
+- `apps/web` → `packages/web` (path change only, no code changes)
+- API base URL unchanged: `http://localhost:8000/api/v1`
+- All existing API endpoints preserved with same signatures
+- Auth flow (JWT, OAuth) unchanged from user perspective
+
+---
+
 ## [1.2.0] - 2026-02-14
 
 ### Security
