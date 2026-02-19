@@ -8,6 +8,7 @@ COPY package.json ./
 COPY packages/web/package.json ./packages/web/
 COPY packages/shared/package.json ./packages/shared/
 
+# Install dependencies (npm for Next.js workspace compatibility)
 RUN npm install --workspace=packages/web --workspace=packages/shared
 
 # Copy source
@@ -26,9 +27,11 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV HOSTNAME=0.0.0.0
 
 RUN addgroup -S martin && adduser -S martin -G martin
 
+# Copy standalone Next.js output
 COPY --from=builder --chown=martin:martin /app/packages/web/.next/standalone ./
 COPY --from=builder --chown=martin:martin /app/packages/web/.next/static ./.next/static
 COPY --from=builder --chown=martin:martin /app/packages/web/public ./public

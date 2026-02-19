@@ -1,63 +1,64 @@
 # ============================================
 # Martin-Coder Web Dockerfile (Production)
+# Next.js 14 + React 18
 # ============================================
 
-FROM node:20-alpine AS base
+# ── Stage 1: Dependencies ──────────────────────────────────
+FROM node:20-alpine AS deps
 
-# Install dependencies only when needed
-FROM base AS deps
 WORKDIR /app
 
-# Copy package files
-COPY apps/web/package*.json ./
+# Copy workspace manifests
+COPY package.json ./
+COPY packages/web/package.json ./packages/web/
+COPY packages/shared/package.json ./packages/shared/
 
-# Install ALL dependencies (including dev) for build
-# Use npm install if package-lock.json doesn't exist
-RUN if [ -f package-lock.json ]; then \
-        npm ci; \
-    else \
-        npm install; \
-    fi
+# Install dependencies
+RUN npm install --workspace=packages/web --workspace=packages/shared
 
-# Rebuild the source code only when needed
-FROM base AS builder
+# ── Stage 2: Build ──────────────────────────────────────────
+FROM node:20-alpine AS builder
+
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
-COPY apps/web/ .
 
-# Set environment variables for build
+# Copy source
+COPY package.json ./
+COPY packages/web ./packages/web
+COPY packages/shared ./packages/shared
+COPY tsconfig.json ./
+
+# Build Next.js
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+RUN npm run --workspace=packages/web build
 
-# Build the application
-RUN npm run build
+# ── Stage 3: Runtime ─────────────────────────────────────────
+FROM node:20-alpine AS runner
 
-# Production image
-FROM base AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
 
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Copy built application
-COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Copy standalone Next.js output
+COPY --from=builder --chown=nextjs:nodejs /app/packages/web/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/packages/web/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/packages/web/public ./public
 
 USER nextjs
 
 EXPOSE 3000
 
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
-
-# Health check (using node instead of wget which is not available in alpine)
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD node -e "require('http').get('http://localhost:3000/', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))" || exit 1
 
 CMD ["node", "server.js"]
