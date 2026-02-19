@@ -1,32 +1,28 @@
 # ============================================
 # Martin-Coder API Dockerfile (Development)
+# TypeScript/Bun Stack - Hono + SQLite
+# Hot reload via bun --watch
 # ============================================
 
-FROM python:3.11-slim
+FROM oven/bun:1.1-alpine
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    curl \
-    git \
-    && rm -rf /var/lib/apt/lists/* || true
-
-# Create app directory
 WORKDIR /app
 
-# Install Python dependencies
-COPY apps/api/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install system dependencies
+RUN apk add --no-cache wget curl git
 
-# Create data directory
-RUN mkdir -p /app/data/chroma || true
+# Copy workspace manifests (for initial install)
+COPY package.json bun.lock* bun.lockb* ./
+COPY packages/shared/package.json ./packages/shared/
+COPY packages/api/package.json ./packages/api/
 
-# Expose port
+# Install all dependencies
+RUN bun install --frozen-lockfile --production=false
+
+# Create data directory for SQLite
+RUN mkdir -p /data
+
 EXPOSE 8000
 
-# Run with hot reload
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Dev mode with hot reload
+CMD ["bun", "run", "--watch", "packages/api/src/index.ts"]

@@ -6,7 +6,7 @@ const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['monaco-editor'],
 
-  // Proxy API requests to FastAPI backend
+  // Proxy API requests to Hono backend
   async rewrites() {
     return [
       {

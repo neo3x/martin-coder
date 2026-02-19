@@ -1,46 +1,54 @@
 # ============================================
 # Martin-Coder API Dockerfile (Production)
+# TypeScript/Bun Stack - Hono + SQLite
 # ============================================
 
-FROM python:3.11-slim
+# ── Stage 1: Build ──────────────────────────────────────────
+FROM oven/bun:1.1-alpine AS builder
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    curl \
-    git \
-    && rm -rf /var/lib/apt/lists/* || true
-
-# Create app directory
 WORKDIR /app
 
-# Install Python dependencies
-COPY apps/api/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy workspace manifests
+COPY package.json bun.lock* bun.lockb* ./
+COPY packages/shared/package.json ./packages/shared/
+COPY packages/api/package.json ./packages/api/
 
-# Copy application code
-COPY apps/api/ .
+# Install all dependencies (including dev for build)
+RUN bun install --frozen-lockfile --production=false
 
-# Create data directory
-RUN mkdir -p /app/data/chroma || true
+# Copy source
+COPY packages/shared ./packages/shared
+COPY packages/api ./packages/api
+COPY tsconfig.json ./
+
+# Build the API
+RUN bun run --cwd packages/api build
+
+# ── Stage 2: Runtime ─────────────────────────────────────────
+FROM oven/bun:1.1-alpine AS runner
+
+WORKDIR /app
+
+# Install system dependencies for healthcheck
+RUN apk add --no-cache wget curl
 
 # Create non-root user
-RUN adduser --disabled-password --gecos '' appuser && \
-    chown -R appuser:appuser /app
-USER appuser
+RUN addgroup -S martin && adduser -S martin -G martin
 
-# Expose port
+# Copy built artifacts
+COPY --from=builder --chown=martin:martin /app/packages/api/dist ./dist
+COPY --from=builder --chown=martin:martin /app/node_modules ./node_modules
+COPY --from=builder --chown=martin:martin /app/packages/shared ./packages/shared
+
+# Create data directory for SQLite
+RUN mkdir -p /data && chown martin:martin /data
+
+USER martin
+
 EXPOSE 8000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD wget -qO- http://localhost:8000/health || exit 1
 
-# Run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+CMD ["bun", "run", "dist/index.js"]
