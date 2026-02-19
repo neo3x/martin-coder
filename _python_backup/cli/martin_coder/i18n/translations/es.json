@@ -1,0 +1,142 @@
+{
+  "app": {
+    "name": "Martin-Coder CLI",
+    "description": "CLI de generación y edición de código potenciado por IA",
+    "version": "versión"
+  },
+  "common": {
+    "loading": "Cargando...",
+    "error": "Error",
+    "success": "Éxito",
+    "warning": "Advertencia",
+    "yes": "Sí",
+    "no": "No",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "done": "Hecho",
+    "failed": "Fallido",
+    "processing": "Procesando...",
+    "select": "Seleccionar",
+    "enter": "Ingresar"
+  },
+  "status": {
+    "title": "Estado de Martin-Coder",
+    "working_directory": "Directorio de Trabajo",
+    "config_file": "Archivo de Configuración",
+    "not_found": "No encontrado",
+    "default_provider": "Proveedor Predeterminado",
+    "default_model": "Modelo Predeterminado",
+    "configured_providers": "Proveedores Configurados"
+  },
+  "commands": {
+    "chat": {
+      "title": "Chat",
+      "help": "Chat interactivo con IA",
+      "prompt": "Tú",
+      "thinking": "Pensando...",
+      "welcome": "¡Bienvenido a Martin-Coder Chat!",
+      "instructions": "Escribe tu mensaje y presiona Enter. Escribe 'exit' o 'salir' para terminar.",
+      "goodbye": "¡Hasta luego!",
+      "send_error": "Error al enviar mensaje",
+      "session_started": "Sesión de chat iniciada",
+      "session_ended": "Sesión de chat terminada"
+    },
+    "project": {
+      "help": "Comandos de gestión de proyectos",
+      "init": {
+        "help": "Inicializar un nuevo proyecto o registrar uno existente",
+        "success": "¡Proyecto inicializado exitosamente!",
+        "error": "Error al inicializar proyecto",
+        "path_label": "Ruta del proyecto",
+        "name_label": "Nombre del proyecto"
+      },
+      "open": {
+        "help": "Abrir un proyecto existente",
+        "success": "Proyecto abierto",
+        "error": "Error al abrir proyecto",
+        "not_found": "Proyecto no encontrado"
+      },
+      "list": {
+        "help": "Listar todos los proyectos registrados",
+        "no_projects": "Aún no hay proyectos registrados",
+        "header": "Proyectos Registrados"
+      },
+      "analyze": {
+        "help": "Analizar estructura y dependencias del proyecto",
+        "analyzing": "Analizando proyecto...",
+        "success": "Análisis completado",
+        "error": "Error al analizar proyecto"
+      },
+      "index": {
+        "help": "Indexar proyecto para búsqueda semántica",
+        "indexing": "Indexando proyecto...",
+        "success": "Indexación completada",
+        "error": "Error al indexar proyecto"
+      }
+    },
+    "config": {
+      "help": "Gestión de configuración",
+      "show": {
+        "help": "Mostrar configuración actual",
+        "title": "Configuración"
+      },
+      "set": {
+        "help": "Establecer un valor de configuración",
+        "success": "Configuración actualizada",
+        "error": "Error al actualizar configuración"
+      },
+      "reset": {
+        "help": "Restablecer configuración a valores predeterminados",
+        "confirm": "¿Estás seguro de que quieres restablecer la configuración?",
+        "success": "Configuración restablecida a valores predeterminados"
+      }
+    },
+    "generate": {
+      "help": "Generar código",
+      "generating": "Generando código...",
+      "success": "Código generado exitosamente",
+      "error": "Error al generar código",
+      "file_created": "Archivo creado: {path}",
+      "file_updated": "Archivo actualizado: {path}"
+    },
+    "ask": {
+      "help": "Hacer una pregunta rápida a la IA",
+      "thinking": "Pensando..."
+    },
+    "run": {
+      "help": "Ejecutar un comando en el directorio del proyecto",
+      "executing": "Ejecutando comando...",
+      "success": "Comando ejecutado exitosamente",
+      "error": "Comando fallido"
+    },
+    "init": {
+      "help": "Inicializar un nuevo proyecto o registrar uno existente"
+    }
+  },
+  "providers": {
+    "title": "Proveedores de IA",
+    "select": "Seleccionar Proveedor de IA",
+    "anthropic": "Claude (Anthropic)",
+    "openai": "OpenAI",
+    "lmstudio": "LM Studio",
+    "ollama": "Ollama",
+    "configured": "Configurado",
+    "not_configured": "No configurado",
+    "test_connection": "Probando conexión...",
+    "connection_success": "Conexión exitosa",
+    "connection_failed": "Conexión fallida"
+  },
+  "language": {
+    "select": "Seleccionar Idioma",
+    "current": "Idioma actual: {lang}",
+    "changed": "Idioma cambiado a {lang}"
+  },
+  "errors": {
+    "generic": "Ocurrió un error. Por favor intenta de nuevo.",
+    "network": "Error de red. Por favor verifica tu conexión.",
+    "api_key_missing": "Clave API no configurada para {provider}",
+    "provider_unavailable": "Proveedor {provider} no disponible",
+    "file_not_found": "Archivo no encontrado: {path}",
+    "permission_denied": "Permiso denegado: {path}"
+  }
+}

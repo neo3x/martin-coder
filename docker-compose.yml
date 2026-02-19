@@ -1,178 +1,68 @@
-# Martin-Coder Docker Compose (Production)
-# Note: 'version' is deprecated in Docker Compose v2+
+# MARTIN-CODER v2.0 — TypeScript/Bun Stack
+# No PostgreSQL. No Redis. Just SQLite + Bun.
+#
+# Quick start:
+#   cp .env.example .env   (fill in SECRET_KEY and API keys)
+#   docker compose up -d
 
 services:
-  # ===========================================
-  # API Backend
-  # ===========================================
+  # ── API Server (Hono + Bun) ─────────────────────────────────
   api:
     build:
       context: .
-      dockerfile: docker/api.Dockerfile
-    container_name: martin-coder-api
+      dockerfile: docker/Dockerfile.api
+    image: martin-coder-api:2.0
     restart: unless-stopped
-    init: true
-    ports:
-      - "${API_PORT:-8000}:8000"
+    env_file: .env
     environment:
-      - DATABASE_URL=postgresql://martin:${POSTGRES_PASSWORD:-martin_password}@postgres:5432/martin_coder
-      - REDIS_URL=redis://redis:6379/0
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - LMSTUDIO_URL=${LMSTUDIO_URL:-http://host.docker.internal:1234/v1}
-      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
-      - SECRET_KEY=${SECRET_KEY}
-      - CHROMA_PERSIST_DIRECTORY=/app/data/chroma
-      - SANDBOX_ENABLED=true
+      NODE_ENV: production
+      DATABASE_PATH: /data/martin-coder.db
+    ports:
+      - "${PORT:-8000}:8000"
     volumes:
-      - ./data:/app/data
+      - db_data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     deploy:
       resources:
         limits:
           memory: 2g
-          cpus: "2.0"
+          cpus: "2"
         reservations:
-          memory: 512m
-          cpus: "0.5"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - martin-network
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+          memory: 256m
+          cpus: "0.25"
 
-  # ===========================================
-  # Web Frontend
-  # ===========================================
+  # ── Web (Next.js) ──────────────────────────────────────────
   web:
     build:
       context: .
-      dockerfile: docker/web.Dockerfile
-    container_name: martin-coder-web
+      dockerfile: docker/Dockerfile.web
+    image: martin-coder-web:2.0
     restart: unless-stopped
-    init: true
-    ports:
-      - "${FRONTEND_PORT:-3000}:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:${API_PORT:-8000}
-      - NEXT_PUBLIC_WS_URL=ws://localhost:${API_PORT:-8000}
-    deploy:
-      resources:
-        limits:
-          memory: 1g
-          cpus: "1.0"
-        reservations:
-          memory: 256m
-          cpus: "0.25"
+      NEXT_PUBLIC_API_URL: http://api:8000
+    ports:
+      - "3000:3000"
     depends_on:
-      - api
-    networks:
-      - martin-network
-
-  # ===========================================
-  # PostgreSQL Database
-  # ===========================================
-  postgres:
-    image: postgres:16-alpine
-    container_name: martin-coder-postgres
-    restart: unless-stopped
-    environment:
-      - POSTGRES_USER=martin
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-martin_password}
-      - POSTGRES_DB=martin_coder
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      api:
+        condition: service_healthy
     deploy:
       resources:
         limits:
           memory: 1g
-          cpus: "1.0"
-        reservations:
-          memory: 256m
-          cpus: "0.25"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U martin -d martin_coder"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    networks:
-      - martin-network
-
-  # ===========================================
-  # Redis Cache
-  # ===========================================
-  redis:
-    image: redis:7-alpine
-    container_name: martin-coder-redis
-    restart: unless-stopped
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
-    volumes:
-      - redis_data:/data
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
-    deploy:
-      resources:
-        limits:
-          memory: 512m
-          cpus: "0.5"
+          cpus: "1"
         reservations:
           memory: 128m
           cpus: "0.1"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    networks:
-      - martin-network
-
-  # ===========================================
-  # Sandbox Runner (for code execution)
-  # ===========================================
-  sandbox:
-    build:
-      context: .
-      dockerfile: docker/sandbox.Dockerfile
-    container_name: martin-coder-sandbox
-    restart: unless-stopped
-    init: true
-    # SEC-04: Removed privileged mode and Docker socket mount
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    cap_add:
-      - SYS_RESOURCE
-    read_only: true
-    tmpfs:
-      - /tmp:size=512m
-    environment:
-      - REDIS_URL=redis://redis:6379/0
-    volumes:
-      - sandbox_data:/sandboxes
-    deploy:
-      resources:
-        limits:
-          memory: 1g
-          cpus: "1.0"
-        reservations:
-          memory: 256m
-          cpus: "0.25"
-    depends_on:
-      - redis
-    networks:
-      - martin-network
 
 volumes:
-  postgres_data:
-  redis_data:
-  sandbox_data:
+  db_data:
+    driver: local
 
 networks:
-  martin-network:
-    driver: bridge
+  default:
+    name: martin-network
