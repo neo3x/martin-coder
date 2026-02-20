@@ -1,456 +1,451 @@
-# Docker Setup Guide - Martin-Coder
+# Docker Setup Guide - Martin-Coder v2.0
+
+> Stack: **Hono + Bun** (API) · **Next.js 14** (Web) · **SQLite** (DB)
+> Sin PostgreSQL. Sin Redis. Sin sandbox. Solo dos contenedores.
+
+---
 
 ## Quick Start
 
-### Automated Setup (Recommended)
+### Opción 1: Script de gestión (Recomendado)
 
 ```bash
-# Interactive menu
-./martin.sh
+# Menú interactivo
+./martin.sh           # Linux/macOS
+martin.bat            # Windows
 
-# Or use direct commands
-./martin.sh start
+# O comandos directos
+./martin.sh start     # Iniciar con smart rebuild
+./martin.sh stop      # Detener servicios
+./martin.sh status    # Estado y salud
 ```
 
-The management script provides:
-- Interactive menu for all operations
-- Docker and Docker Compose installation checks
-- Automatic `.env` file creation from template
-- Container building and service startup
-- Service health checks and status monitoring
-- Log viewing and container shell access
-- Clean shutdown with data preservation options
-
-### Manual Setup
+### Opción 2: Docker Compose directo
 
 ```bash
-# Copy environment file
+# Copiar configuración
 cp .env.example .env
+# Editar .env — mínimo: SECRET_KEY y al menos una API key de IA
 
-# Edit .env with your configuration (optional for local models)
-nano .env
+# Construir e iniciar
+docker compose build
+docker compose up -d
 
-# Build and start all services
-docker-compose build
-docker-compose up -d
-
-# Check status
-docker-compose ps
+# Verificar
+docker compose ps
+curl http://localhost:8000/health
 ```
 
-## Services
+---
 
-Martin-Coder runs the following Docker services:
+## Servicios
 
-| Service | Port | Description |
-|---------|------|-------------|
-| **web** | 3000 | Next.js frontend (React UI) |
-| **api** | 8000 | FastAPI backend (Python) |
-| **postgres** | 5432 | PostgreSQL database |
-| **redis** | 6379 | Redis cache |
-| **sandbox** | - | Code execution sandbox |
+Martin-Coder v2.0 ejecuta solo **2 servicios Docker**:
 
-## Management Script Commands
+| Servicio | Puerto | Imagen | Descripción |
+|----------|--------|--------|-------------|
+| **api** | 8000 | `martin-coder-api:2.0` | Hono REST API (Bun) |
+| **web** | 3000 | `martin-coder-web:2.0` | Next.js 14 frontend |
 
-The `martin.sh` script provides a unified interface for all Docker operations:
+> La base de datos SQLite se persiste en el volumen Docker `db_data` (montado en `/data/martin-coder.db` dentro del contenedor `api`).
+
+---
+
+## Comandos del Script de Gestión
 
 ```bash
-# Interactive menu
-./martin.sh
+# ── Docker ──────────────────────────────────────────────────
+./martin.sh start          # Iniciar con detección de cambios automática
+./martin.sh stop           # Detener (opción: conservar o borrar datos)
+./martin.sh restart        # Reiniciar servicios
+./martin.sh status         # Estado + health checks + menú rápido
+./martin.sh logs [servicio] # Ver logs (api | web)
+./martin.sh build          # Rebuild forzado de todos los contenedores
+./martin.sh sync           # Rebuild inteligente (solo lo que cambió)
+./martin.sh clean          # Eliminar contenedores, volúmenes y redes
 
-# Start all services
-./martin.sh start
+# ── Acceso a contenedores ────────────────────────────────────
+./martin.sh shell api      # Shell en contenedor API (bash)
+./martin.sh shell web      # Shell en contenedor Web (sh)
 
-# Stop services (interactive - choose to keep or remove data)
-./martin.sh stop
-
-# Restart all services
-./martin.sh restart
-
-# Show service status and health
-./martin.sh status
-
-# View logs
-./martin.sh logs          # All services
-./martin.sh logs api      # Specific service
-
-# Rebuild containers
-./martin.sh build
-
-# Clean everything (containers + data)
-./martin.sh clean
-
-# Access container shell
-./martin.sh shell api      # API container
-./martin.sh shell web      # Web container
-./martin.sh shell postgres # PostgreSQL
-./martin.sh shell redis    # Redis
-
-# Show help
-./martin.sh help
+# ── Desarrollo ──────────────────────────────────────────────
+./martin.sh dev            # Modo dev local con Bun (sin Docker)
+./martin.sh dev api        # Solo el API en modo dev
+./martin.sh dev web        # Solo el frontend en modo dev
+./martin.sh test           # Ejecutar tests vía Turbo
+./martin.sh lint           # Ejecutar linter vía Turbo
+./martin.sh db migrate     # Aplicar schema SQLite (drizzle push)
+./martin.sh db generate    # Generar SQL de migraciones
+./martin.sh db studio      # Abrir Drizzle Studio (explorador de BD)
+./martin.sh db reset       # Borrar y recrear la base de datos
+./martin.sh update         # git pull + bun install + rebuild
+./martin.sh info           # Info del stack y del proyecto
 ```
 
-## Common Docker Compose Commands
+---
 
-If you prefer using Docker Compose directly:
+## Docker Compose directo
+
+### Iniciar y detener
 
 ```bash
-# Start all services
-docker-compose up -d
+# Iniciar en segundo plano
+docker compose up -d
 
-# Start and view logs
-docker-compose up
+# Ver logs en tiempo real
+docker compose up
 
-# Stop all services
-docker-compose down
+# Detener (conserva datos)
+docker compose down
 
-# Stop and remove all data
-docker-compose down -v
+# Detener y eliminar datos
+docker compose down -v
 ```
 
-### Build and Rebuild
+### Build y rebuild
 
 ```bash
-# Build all containers
-docker-compose build
+# Build de todos los contenedores
+docker compose build
 
-# Build specific service
-docker-compose build api
+# Build de un servicio específico
+docker compose build api
+docker compose build web
 
-# Rebuild without cache
-docker-compose build --no-cache
+# Rebuild sin caché
+docker compose build --no-cache
 
-# Rebuild and restart
-docker-compose up -d --build
+# Rebuild y reiniciar en un comando
+docker compose up -d --build
 ```
 
-### Logs and Monitoring
+### Logs y monitoreo
 
 ```bash
-# View all logs
-docker-compose logs
+# Ver todos los logs
+docker compose logs
 
-# Follow logs (real-time)
-docker-compose logs -f
+# Seguir logs en tiempo real
+docker compose logs -f
 
-# View specific service logs
-docker-compose logs -f api
-docker-compose logs -f web
+# Logs de un servicio
+docker compose logs -f api
+docker compose logs -f web
 
-# Last 100 lines
-docker-compose logs --tail=100
+# Últimas 100 líneas
+docker compose logs --tail=100 api
 ```
 
-### Service Management
+### Gestión de servicios
 
 ```bash
-# Check service status
-docker-compose ps
+# Estado de los contenedores
+docker compose ps
 
-# Restart all services
-docker-compose restart
+# Reiniciar todos
+docker compose restart
 
-# Restart specific service
-docker-compose restart api
+# Reiniciar un servicio
+docker compose restart api
 
-# Stop specific service
-docker-compose stop web
-
-# Start specific service
-docker-compose start web
+# Detener/iniciar servicio individual
+docker compose stop web
+docker compose start web
 ```
 
-### Container Access
+### Acceso a contenedores
 
 ```bash
-# Access API container shell
-docker-compose exec api bash
+# Shell en el contenedor API
+docker compose exec api bash
 
-# Access Web container shell
-docker-compose exec web sh
-
-# Access PostgreSQL
-docker-compose exec postgres psql -U martin -d martin_coder
-
-# Access Redis CLI
-docker-compose exec redis redis-cli
+# Shell en el contenedor Web
+docker compose exec web sh
 ```
+
+---
 
 ## Troubleshooting
 
-### Port Already in Use
-
-If you get "port already allocated" error:
+### Puerto en uso
 
 ```bash
-# Check what's using the port
-lsof -i :3000  # for web
-lsof -i :8000  # for api
+# Verificar qué usa el puerto
+lsof -i :3000   # web
+lsof -i :8000   # api
 
-# Kill the process using the port
+# Matar el proceso
 kill -9 <PID>
 
-# Or change the port in .env file
-FRONTEND_PORT=3001
-API_PORT=8001
+# O cambiar el puerto en .env
+PORT=8001
 ```
 
-### Container Won't Start
+### El contenedor no arranca
 
 ```bash
-# View container logs
-docker-compose logs <service-name>
+# Ver logs del contenedor
+docker compose logs api
+docker compose logs web
 
-# Remove all containers and start fresh
-docker-compose down -v
-docker-compose up -d
-
-# Check Docker daemon
-docker info
+# Reiniciar desde cero
+docker compose down -v
+docker compose up -d
 ```
 
-### Out of Disk Space
+### Errores de build
 
 ```bash
-# Clean up unused Docker resources
+# Limpiar caché de build
+docker builder prune
+
+# Build sin caché
+docker compose build --no-cache
+
+# Verificar versión de Docker
+docker --version
+docker compose version
+```
+
+### API no responde
+
+```bash
+# Verificar health
+curl http://localhost:8000/health
+
+# Ver logs
+./martin.sh logs api
+
+# Verificar .env (SECRET_KEY es obligatorio)
+grep SECRET_KEY .env
+```
+
+### Base de datos corrupta o errores de schema
+
+```bash
+# Resetear la base de datos (borra todos los datos)
+./martin.sh db reset
+
+# O manualmente dentro del contenedor
+docker compose exec api sh -c "rm -f /data/martin-coder.db"
+docker compose restart api
+```
+
+### Sin espacio en disco
+
+```bash
+# Limpiar recursos Docker no usados
 docker system prune
 
-# Remove all stopped containers, unused networks, dangling images
-docker system prune -a
+# Eliminar imágenes, contenedores y volúmenes no usados
+docker system prune -a -f
 
-# View disk usage
+# Ver uso de disco
 docker system df
 ```
 
-### Database Connection Issues
+### No puede conectar al daemon Docker
 
 ```bash
-# Check if postgres is healthy
-docker-compose ps postgres
-
-# Restart postgres
-docker-compose restart postgres
-
-# Check database logs
-docker-compose logs postgres
-
-# Connect to database to verify
-docker-compose exec postgres psql -U martin -d martin_coder
-```
-
-### Build Failures
-
-```bash
-# Clear build cache
-docker builder prune
-
-# Build without cache
-docker-compose build --no-cache
-
-# Pull latest base images
-docker-compose pull
-
-# Check Docker version
-docker --version
-docker-compose --version
-```
-
-### Permission Issues
-
-```bash
-# Fix ownership of data directory
-sudo chown -R $USER:$USER ./data
-
-# Fix permissions
-chmod -R 755 ./data
-```
-
-### Cannot Connect to Docker Daemon
-
-```bash
-# Start Docker daemon (macOS)
+# macOS — iniciar Docker Desktop
 open -a Docker
 
-# Start Docker daemon (Linux)
+# Linux — iniciar servicio
 sudo systemctl start docker
 
-# Add user to docker group (Linux)
+# Linux — agregar usuario al grupo docker
 sudo usermod -aG docker $USER
 newgrp docker
 ```
 
-## Environment Configuration
+---
 
-### Required Variables
+## Variables de entorno
+
+### Variables requeridas
 
 ```env
-# API Keys (at least one provider)
-ANTHROPIC_API_KEY=sk-ant-...      # For Claude
-OPENAI_API_KEY=sk-...              # For OpenAI
-LMSTUDIO_URL=http://localhost:1234/v1  # For local LM Studio
-OLLAMA_URL=http://localhost:11434       # For local Ollama
+# Obligatorio: clave para JWT (mínimo 32 caracteres)
+SECRET_KEY=tu-clave-secreta-fuerte-de-al-menos-32-chars
 
-# Security
-SECRET_KEY=<generate-random-key>
-
-# Database (Docker uses these defaults)
-POSTGRES_PASSWORD=martin_password
+# Obligatorio: al menos un proveedor de IA
+ANTHROPIC_API_KEY=sk-ant-...
+# OPENAI_API_KEY=sk-...
+# GOOGLE_GENERATIVE_AI_API_KEY=AIza...
 ```
 
-### Generate Secret Key
+### Variables opcionales
+
+```env
+PORT=8000                         # Puerto del API (default: 8000)
+NODE_ENV=production               # Entorno
+DATABASE_PATH=/data/martin-coder.db  # Ruta de la base de datos SQLite
+FRONTEND_URL=http://localhost:3000   # URL del frontend (para CORS)
+CORS_ORIGINS=http://localhost:3000   # Orígenes CORS permitidos
+OLLAMA_BASE_URL=http://localhost:11434  # URL de Ollama (modelos locales)
+LMSTUDIO_BASE_URL=http://localhost:1234/v1  # URL de LM Studio
+DEFAULT_AI_PROVIDER=anthropic     # Proveedor IA por defecto
+FIRST_ADMIN_EMAIL=admin@example.com  # Email del admin inicial
+FIRST_ADMIN_PASSWORD=changeme     # Contraseña del admin inicial
+LOG_LEVEL=info                    # Nivel de logs
+```
+
+### Generar SECRET_KEY
 
 ```bash
-# Using OpenSSL
+# Con OpenSSL
 openssl rand -hex 32
 
-# Using Python
-python -c "import secrets; print(secrets.token_hex(32))"
+# Con Node.js
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+
+# Con Bun
+bun -e "console.log(Bun.randomUUIDv7())"
 ```
 
-## Data Persistence
+---
 
-Docker volumes are used to persist data:
+## Persistencia de datos
 
-| Volume | Description |
-|--------|-------------|
-| `postgres_data` | Database data |
-| `redis_data` | Redis cache |
-| `sandbox_data` | Sandbox execution data |
-| `./data` | ChromaDB embeddings, logs |
+Los datos se persisten en volúmenes Docker:
 
-### Backup Data
+| Volumen | Descripción |
+|---------|-------------|
+| `db_data` | Base de datos SQLite (`/data/martin-coder.db` en el contenedor API) |
+
+### Backup de la base de datos
 
 ```bash
-# Backup database
-docker-compose exec postgres pg_dump -U martin martin_coder > backup.sql
+# Copiar el archivo SQLite del volumen al host
+docker compose exec api cat /data/martin-coder.db > backup-$(date +%Y%m%d).db
 
-# Backup all volumes
-docker run --rm -v martin-coder_postgres_data:/data -v $(pwd):/backup \
-  alpine tar czf /backup/postgres_backup.tar.gz /data
+# O usando docker cp
+docker compose cp api:/data/martin-coder.db ./backup-$(date +%Y%m%d).db
 ```
 
-### Restore Data
+### Restaurar la base de datos
 
 ```bash
-# Restore database
-cat backup.sql | docker-compose exec -T postgres psql -U martin -d martin_coder
+# Detener el API
+docker compose stop api
+
+# Restaurar desde backup
+docker compose cp ./backup-YYYYMMDD.db api:/data/martin-coder.db
+
+# Reiniciar
+docker compose start api
 ```
 
-## Development vs Production
+---
 
-### Development Setup
+## Desarrollo vs Producción
 
-Use `docker-compose.dev.yml` for development with hot-reload:
+### Modo producción (docker-compose.yml)
 
 ```bash
-# Start in development mode
-docker-compose -f docker-compose.dev.yml up
-
-# Build dev containers
-docker-compose -f docker-compose.dev.yml build
+docker compose up -d
 ```
 
-### Production Setup
+- Imágenes optimizadas multi-stage (Bun build)
+- `NODE_ENV=production`
+- Health checks activos
+- Límites de recursos (API: 2GB/2CPU, Web: 1GB/1CPU)
 
-Use regular `docker-compose.yml` for production:
+### Modo desarrollo (docker-compose.dev.yml)
 
 ```bash
-# Start in production mode
-docker-compose up -d
-
-# Set production environment variables
-ENVIRONMENT=production
-DEBUG=false
+docker compose -f docker-compose.dev.yml up
 ```
 
-## Performance Optimization
+- Hot reload con Bun `--watch` (API)
+- Hot reload con Next.js dev server (Web)
+- Código fuente montado como volumen
 
-### Resource Limits
-
-Edit `docker-compose.yml` to set resource limits:
-
-```yaml
-services:
-  api:
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 2G
-        reservations:
-          memory: 512M
-```
-
-### Health Checks
-
-Services include health checks. View status:
+### Desarrollo local sin Docker
 
 ```bash
-docker-compose ps
+# Instalar dependencias
+bun install
 
-# Healthy services show (healthy) status
+# Dev completo (API + Web en paralelo)
+bun run dev
+
+# O por servicio
+./martin.sh dev api    # API en http://localhost:8000
+./martin.sh dev web    # Web en http://localhost:3000
 ```
+
+---
 
 ## Networking
 
-All services run on the `martin-network` bridge network and can communicate using service names:
+Los servicios corren en la red `martin-network`:
 
-- API connects to PostgreSQL: `postgresql://martin:password@postgres:5432/martin_coder`
-- API connects to Redis: `redis://redis:6379/0`
-- Web connects to API: `http://api:8000`
+- `web` → `api`: `http://api:8000` (interno)
+- Host → `api`: `http://localhost:8000`
+- Host → `web`: `http://localhost:3000`
 
-### Access from Host
+### Proxy inverso (Nginx) — Producción
 
-From your host machine:
-- Web: `http://localhost:3000`
-- API: `http://localhost:8000`
-- Postgres: `localhost:5432`
-- Redis: `localhost:6379`
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name tu-dominio.com;
 
-## Security Considerations
+    # Frontend
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+    }
 
-1. **Change default passwords** in `.env` file
-2. **Generate strong SECRET_KEY**
-3. **Don't commit `.env`** to version control (already in `.gitignore`)
-4. **Use HTTPS** in production with reverse proxy (nginx/traefik)
-5. **Keep Docker updated**: `docker version` and `docker-compose version`
-6. **Scan images**: `docker scan martin-coder-api`
+    # API
+    location /api/ {
+        proxy_pass http://localhost:8000/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
 
-## Updating
-
-```bash
-# Pull latest code
-git pull
-
-# Rebuild and restart using the management script
-./martin.sh build
-./martin.sh restart
-
-# Or manually with Docker Compose
-docker-compose build
-docker-compose down
-docker-compose up -d
+    # SSE (streaming de IA)
+    location /api/v1/sessions/ {
+        proxy_pass http://localhost:8000/api/v1/sessions/;
+        proxy_http_version 1.1;
+        proxy_set_header Connection '';
+        proxy_buffering off;
+        proxy_cache off;
+    }
+}
 ```
 
-## Clean Uninstall
+---
+
+## Desinstalar
 
 ```bash
-# Stop and remove everything
-docker-compose down -v
+# Detener y eliminar todo
+docker compose down -v
 
-# Remove images
-docker rmi martin-coder-api martin-coder-web martin-coder-sandbox
+# Eliminar imágenes
+docker rmi martin-coder-api:2.0 martin-coder-web:2.0
 
-# Remove data directory (optional)
-rm -rf ./data
-
-# Remove environment file (optional)
+# Eliminar archivo .env (opcional)
 rm .env
 ```
 
-## Additional Resources
+---
 
-- [Docker Documentation](https://docs.docker.com/)
-- [Docker Compose Documentation](https://docs.docker.com/compose/)
-- [Martin-Coder README](README.md)
-- [Installation Guide](docs/en/installation.md)
+## URLs de acceso
+
+| Servicio | URL |
+|---------|-----|
+| Web UI | http://localhost:3000 |
+| API | http://localhost:8000 |
+| API Health | http://localhost:8000/health |
+| OpenAPI Spec | http://localhost:8000/openapi.json |
+
+---
+
+*Martin-Coder v2.0 — Docker Guide — 2026*
