@@ -767,7 +767,7 @@ if %errorlevel% equ 0 (
     call :print_warning "Bun not found, skipping dependency install"
 )
 
-call :detect_docker_compose
+call :detect_docker_compose || exit /b 1
 if !errorlevel! equ 0 (
     call :print_info "Rebuilding Docker containers..."
     !DOCKER_COMPOSE! build
