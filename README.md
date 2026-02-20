@@ -641,7 +641,7 @@ Licencia MIT - ver [LICENSE](LICENSE)
 
 ## Contributing
 
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details.
+Contributions are welcome! Open an issue or submit a pull request on GitHub.
 
 ## Support
 
@@ -658,4 +658,4 @@ Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md)
 
 ---
 
-*Martin-Coder v2.0 - 2025*
+*Martin-Coder v2.0 - 2026*

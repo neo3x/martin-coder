@@ -1,424 +1,428 @@
-# Martin.sh - Unified Management Script
+# Script de Gestión — Martin-Coder v2.0
 
-Complete guide for the Martin-Coder management script.
+Guía completa para `martin.sh` (Linux/macOS) y `martin.bat` (Windows).
 
-## Overview
+## Descripción
 
-`martin.sh` is a unified Bash script that simplifies all Docker operations for Martin-Coder. It replaces multiple separate scripts with a single, easy-to-use interface.
+El script de gestión es una interfaz unificada para todas las operaciones de Martin-Coder. Soporta tanto un **menú interactivo** (sin argumentos) como **comandos directos** para automatización y CI/CD.
 
-## Features
+Características:
+- Detección automática de `docker compose` o `docker-compose`
+- Smart rebuild — detecta cambios en `packages/api`, `packages/web`, `packages/shared`
+- Modo dev local con Bun (sin Docker)
+- Health checks para API y Web UI
+- Salida con código de color
+- Confirmaciones para operaciones destructivas
+- Compatible en Windows (`martin.bat`) y Linux/macOS (`martin.sh`)
 
-- **Interactive Menu**: Run without arguments for a user-friendly menu
-- **Command-Line Interface**: Direct commands for automation and scripting
-- **Docker Detection**: Automatically detects `docker compose` or `docker-compose`
-- **Health Checks**: Tests API and Web UI endpoints
-- **Resource Monitoring**: Shows CPU and memory usage
-- **Color-Coded Output**: Easy to read status messages
-- **Safe Operations**: Confirmations for destructive actions
+---
 
 ## Quick Start
 
 ```bash
-# Make executable (first time only)
+# Linux/macOS — hacer ejecutable (solo la primera vez)
 chmod +x martin.sh
 
-# Interactive menu
-./martin.sh
+# Menú interactivo
+./martin.sh           # Linux/macOS
+martin.bat            # Windows
 
-# Or use direct commands
+# Comando directo
 ./martin.sh start
-```
-
-## Available Commands
-
-### start
-Start all services (builds containers if needed, creates .env)
-
-```bash
-./martin.sh start
-```
-
-**What it does:**
-1. Checks Docker and Docker Compose are installed
-2. Creates `.env` from `.env.example` if missing
-3. Offers to edit `.env` file
-4. Stops existing containers
-5. Builds all containers
-6. Starts all services
-7. Shows service status and URLs
-8. Optionally displays logs
-
-### stop
-Interactive stop with options to preserve or remove data
-
-```bash
-./martin.sh stop
-```
-
-**Options:**
-1. Stop services (keep data)
-2. Stop and remove everything (containers + volumes + data)
-3. Cancel
-
-### restart
-Restart all running services
-
-```bash
-./martin.sh restart
-```
-
-### status
-Show comprehensive service status
-
-```bash
-./martin.sh status
-```
-
-**Shows:**
-- Container status (running/stopped)
-- Service URLs
-- Health checks (API and Web UI)
-- Resource usage (CPU, memory)
-- Quick action menu
-
-**Interactive options:**
-- `[l]` View logs
-- `[r]` Restart services
-- `[s]` Stop services
-- `[q]` Quit
-
-### logs
-View service logs
-
-```bash
-# All services
-./martin.sh logs
-
-# Specific service
-./martin.sh logs api
-./martin.sh logs web
-./martin.sh logs postgres
-./martin.sh logs redis
-```
-
-Press `Ctrl+C` to exit log viewing.
-
-### build
-Rebuild all containers
-
-```bash
-./martin.sh build
-```
-
-Use this after pulling code changes or modifying Dockerfiles.
-
-### clean
-Complete cleanup (containers + volumes + networks)
-
-```bash
-./martin.sh clean
-```
-
-**Warning:** This removes ALL data including databases. Requires typing "yes" to confirm.
-
-### shell
-Access container shell/CLI
-
-```bash
-# API container (bash)
-./martin.sh shell api
-
-# Web container (sh)
-./martin.sh shell web
-
-# PostgreSQL (psql)
-./martin.sh shell postgres
-
-# Redis (redis-cli)
-./martin.sh shell redis
-```
-
-### help
-Show help and usage information
-
-```bash
-./martin.sh help
-# or
-./martin.sh --help
-./martin.sh -h
-```
-
-## Interactive Menu
-
-Run without arguments to see the interactive menu:
-
-```bash
-./martin.sh
-```
-
-**Menu Options:**
-1. Start services
-2. Stop services
-3. Restart services
-4. Show status
-5. View logs
-6. Build containers
-7. Clean all data
-8. Help
-9. Exit
-
-## Examples
-
-### First-Time Setup
-
-```bash
-# Clone repository
-git clone https://github.com/neo3x/martin-coder.git
-cd martin-coder
-
-# Start services (creates .env, builds, starts)
-./martin.sh start
-
-# Check status
-./martin.sh status
-```
-
-### Daily Development
-
-```bash
-# Start services
-./martin.sh start
-
-# View API logs while developing
-./martin.sh logs api
-
-# Access API container to run commands
-./martin.sh shell api
-
-# Restart after code changes
-./martin.sh restart
-```
-
-### Troubleshooting
-
-```bash
-# Check service status and health
-./martin.sh status
-
-# View all logs for errors
-./martin.sh logs
-
-# Rebuild containers (clean build)
-./martin.sh build
-
-# Complete reset
-./martin.sh clean
-./martin.sh start
-```
-
-### Updating Application
-
-```bash
-# Pull latest code
-git pull
-
-# Rebuild and restart
-./martin.sh build
-./martin.sh restart
-
-# Verify everything is working
-./martin.sh status
-```
-
-## Environment Variables
-
-The script respects environment variables from `.env`:
-
-```env
-API_PORT=8000
-FRONTEND_PORT=3000
-POSTGRES_PORT=5432
-REDIS_PORT=6379
-```
-
-## Exit Codes
-
-- `0`: Success
-- `1`: Error (with error message)
-
-## Color Codes
-
-- 🔵 Blue: Information
-- 🟢 Green: Success
-- 🟡 Yellow: Warning
-- 🔴 Red: Error
-- 🔷 Cyan: Headers/Titles
-
-## Requirements
-
-- **Bash**: Version 4.0+
-- **Docker**: Version 24+
-- **Docker Compose**: V2 or docker-compose V1
-
-The script automatically detects and uses the correct Docker Compose command.
-
-## Automation & CI/CD
-
-Use direct commands for automation:
-
-```bash
-# CI/CD pipeline example
-./martin.sh start
-./martin.sh status
-# Run tests...
-./martin.sh logs api > api.log
-./martin.sh stop
-```
-
-## Tips & Best Practices
-
-### 1. First Time Setup
-Always run `./martin.sh start` for first-time setup. It handles .env creation and offers to edit it.
-
-### 2. Check Status Regularly
-Use `./martin.sh status` to monitor service health and resource usage.
-
-### 3. View Logs for Debugging
-When something goes wrong, check logs:
-```bash
-./martin.sh logs api    # Backend issues
-./martin.sh logs web    # Frontend issues
-```
-
-### 4. Clean Rebuilds
-If containers behave strangely:
-```bash
-./martin.sh clean
-./martin.sh start
-```
-
-### 5. Safe Stops
-Use `./martin.sh stop` instead of `docker-compose down -v` to avoid accidentally deleting data.
-
-### 6. Shell Access
-Quickly access containers for debugging:
-```bash
-./martin.sh shell api      # Run Python commands
-./martin.sh shell postgres # Query database
-```
-
-### 7. Resource Monitoring
-Check if services are using too much CPU/memory:
-```bash
-./martin.sh status
-# Then select [l] to view detailed logs
-```
-
-## Troubleshooting
-
-### Script Won't Run
-```bash
-# Make executable
-chmod +x martin.sh
-
-# Check if bash is available
-which bash
-
-# Run with bash explicitly
-bash martin.sh start
-```
-
-### Docker Not Found
-```bash
-# Check Docker installation
-docker --version
-docker compose version
-```
-
-Install Docker from: https://docs.docker.com/get-docker/
-
-### Permission Denied
-```bash
-# Add user to docker group (Linux)
-sudo usermod -aG docker $USER
-newgrp docker
-
-# Or run with sudo (not recommended)
-sudo ./martin.sh start
-```
-
-### Services Won't Start
-```bash
-# Check what's using the ports
-lsof -i :3000  # Web
-lsof -i :8000  # API
-
-# View detailed logs
-./martin.sh logs
-
-# Try clean start
-./martin.sh clean
-./martin.sh start
-```
-
-## Script Structure
-
-```
-martin.sh
-├── Color definitions
-├── Helper functions
-│   ├── print_* (output formatting)
-│   ├── command_exists (dependency checking)
-│   └── detect_docker_compose (Docker Compose detection)
-├── Main commands
-│   ├── start_services
-│   ├── stop_services
-│   ├── restart_services
-│   ├── show_status
-│   ├── view_logs
-│   ├── build_containers
-│   ├── clean_all
-│   └── access_shell
-└── Main entry point
-    ├── Interactive menu (no args)
-    └── Command dispatcher (with args)
-```
-
-## Contributing
-
-Found a bug or want to add a feature? The script is designed to be easily extensible.
-
-1. Add your function following the naming convention
-2. Add color-coded output for consistency
-3. Add error handling with `set -e`
-4. Update the help text
-5. Test thoroughly
-
-## Service URLs
-
-After starting services with `./martin.sh start`:
-
-- **Web UI**: http://localhost:3000
-- **API**: http://localhost:8000
-- **API Docs**: http://localhost:8000/docs
-- **PostgreSQL**: localhost:5432
-- **Redis**: localhost:6379
-
-## Quick Reference Card
-
-```bash
-./martin.sh              # Interactive menu
-./martin.sh start        # Start everything
-./martin.sh stop         # Stop with options
-./martin.sh restart      # Restart all
-./martin.sh status       # Check health
-./martin.sh logs [svc]   # View logs
-./martin.sh build        # Rebuild
-./martin.sh clean        # Remove all
-./martin.sh shell <svc>  # Container access
-./martin.sh help         # Show help
+martin.bat start
 ```
 
 ---
 
-**Martin-Coder Project - 2025**
+## Menú Interactivo
+
+Al ejecutar sin argumentos se muestra el menú:
+
+```
+Martin-Coder v2.0
+
+Choose an action:
+
+   1) Start services (smart up)
+   2) Stop services
+   3) Restart services (smart-aware)
+   4) Status & health
+   5) Logs
+   6) Build all containers
+   7) Sync (rebuild what changed)
+   8) Dev mode (local Bun, no Docker)
+   9) Run tests
+  10) Run lint
+  11) Database management
+  12) Update (pull & rebuild)
+  13) Project info
+  14) Shell access
+  15) Clean all data
+  16) Help
+   0) Exit
+
+Select (0-16):
+```
+
+---
+
+## Comandos Docker
+
+### `start`
+Inicia los servicios con detección inteligente de cambios.
+
+```bash
+./martin.sh start
+martin.bat start
+```
+
+**Pasos:**
+1. Verifica que Docker y Docker Compose estén instalados
+2. Verifica que Bun esté instalado
+3. Crea `.env` desde `.env.example` si no existe
+4. Instala dependencias con `bun install`
+5. Detecta si hay cambios en `packages/api`, `packages/web` o `packages/shared`
+6. Construye solo los servicios que cambiaron (smart rebuild)
+7. Inicia los servicios en segundo plano
+8. Ejecuta health checks
+
+---
+
+### `stop`
+Detiene los servicios con opción de preservar o borrar datos.
+
+```bash
+./martin.sh stop
+```
+
+**Opciones:**
+1. Detener servicios (conservar datos) — `docker compose down`
+2. Detener y eliminar todo (contenedores + volúmenes + datos) — `docker compose down -v`
+3. Cancelar
+
+---
+
+### `restart`
+Reinicia los servicios. Si se detectan cambios, hace rebuild antes.
+
+```bash
+./martin.sh restart
+```
+
+---
+
+### `status`
+Muestra el estado detallado de los servicios.
+
+```bash
+./martin.sh status
+```
+
+**Muestra:**
+- Estado de los contenedores (`docker compose ps`)
+- URLs de acceso
+- Health checks (API: `GET /health`, Web: HTTP check)
+- Uso de recursos (CPU y memoria)
+- Menú de acciones rápidas: `[l]` logs · `[r]` restart · `[s]` stop · `[q]` salir
+
+---
+
+### `logs`
+Muestra los logs de los servicios.
+
+```bash
+./martin.sh logs           # Todos los servicios
+./martin.sh logs api       # Solo el API
+./martin.sh logs web       # Solo el frontend
+```
+
+Presionar `Ctrl+C` para salir.
+
+---
+
+### `build`
+Fuerza el rebuild completo de todos los contenedores.
+
+```bash
+./martin.sh build
+```
+
+Usar después de cambios en Dockerfiles o cuando se quiere asegurar una imagen limpia.
+
+---
+
+### `sync`
+Rebuild inteligente — solo reconstruye los servicios que tuvieron cambios.
+
+```bash
+./martin.sh sync
+```
+
+Compara fechas de modificación de `packages/api`, `packages/web`, `packages/shared` y reconstruye solo lo necesario.
+
+---
+
+### `clean`
+Elimina contenedores, volúmenes, redes y artefactos de build.
+
+```bash
+./martin.sh clean
+```
+
+**Advertencia:** Elimina TODOS los datos incluyendo la base de datos SQLite. Requiere confirmación escribiendo `yes`.
+
+---
+
+### `shell`
+Abre un shell dentro del contenedor indicado.
+
+```bash
+./martin.sh shell api      # bash en contenedor API (Bun/Hono)
+./martin.sh shell web      # sh en contenedor Web (Next.js)
+```
+
+---
+
+## Comandos de Desarrollo
+
+### `dev`
+Inicia el modo desarrollo local con Bun (sin Docker).
+
+```bash
+./martin.sh dev            # API + Web en paralelo (turbo dev)
+./martin.sh dev api        # Solo el API en http://localhost:8000
+./martin.sh dev web        # Solo el frontend en http://localhost:3000
+./martin.sh dev cli        # CLI en modo watch
+```
+
+---
+
+### `test`
+Ejecuta el suite de tests via Turbo.
+
+```bash
+./martin.sh test           # Todos los packages
+./martin.sh test api       # Solo packages/api
+./martin.sh test web       # Solo packages/web
+```
+
+---
+
+### `lint`
+Ejecuta el linter via Turbo.
+
+```bash
+./martin.sh lint           # Todos los packages
+./martin.sh lint api       # Solo packages/api
+./martin.sh lint web       # Solo packages/web
+```
+
+---
+
+### `db`
+Gestión de la base de datos SQLite via Drizzle ORM.
+
+```bash
+./martin.sh db migrate     # Aplicar schema (drizzle-kit push)
+./martin.sh db generate    # Generar archivos SQL de migración
+./martin.sh db studio      # Abrir Drizzle Studio en http://localhost:4983
+./martin.sh db reset       # Borrar y recrear la base de datos
+```
+
+---
+
+### `update`
+Actualiza el proyecto: git pull + instala deps + rebuild Docker.
+
+```bash
+./martin.sh update
+```
+
+**Pasos:**
+1. Verifica que Git esté instalado
+2. `git pull` — obtiene los últimos cambios
+3. `bun install` — actualiza dependencias
+4. Rebuild de contenedores Docker si está disponible
+5. Opción de reiniciar servicios inmediatamente
+
+---
+
+### `info`
+Muestra información del stack y del proyecto.
+
+```bash
+./martin.sh info
+```
+
+**Muestra:** Runtime, Language, API framework, Frontend, Database, AI SDKs, Build tool, packages del monorepo, features habilitadas.
+
+---
+
+### `help`
+Muestra la ayuda con todos los comandos disponibles.
+
+```bash
+./martin.sh help
+./martin.sh --help
+./martin.sh -h
+```
+
+---
+
+## Referencia rápida
+
+```bash
+# ── Docker ──────────────────────────────────────────────────
+./martin.sh start          # Iniciar con smart rebuild
+./martin.sh stop           # Detener (con opciones de datos)
+./martin.sh restart        # Reiniciar (smart-aware)
+./martin.sh status         # Estado + health + menú rápido
+./martin.sh logs [svc]     # Ver logs (api | web)
+./martin.sh build          # Rebuild forzado de todo
+./martin.sh sync           # Rebuild solo lo que cambió
+./martin.sh clean          # Eliminar todo (con confirmación)
+./martin.sh shell api      # Shell en contenedor API
+./martin.sh shell web      # Shell en contenedor Web
+
+# ── Desarrollo ──────────────────────────────────────────────
+./martin.sh dev            # Dev local completo (Bun, sin Docker)
+./martin.sh dev api        # Solo API en modo dev
+./martin.sh dev web        # Solo Web en modo dev
+./martin.sh test [pkg]     # Tests via Turbo
+./martin.sh lint [pkg]     # Linter via Turbo
+./martin.sh db migrate     # Aplicar schema SQLite
+./martin.sh db generate    # Generar SQL de migración
+./martin.sh db studio      # Drizzle Studio
+./martin.sh db reset       # Resetear BD
+./martin.sh update         # git pull + bun install + rebuild
+./martin.sh info           # Info del proyecto
+./martin.sh help           # Mostrar ayuda
+```
+
+---
+
+## Ejemplos de uso
+
+### Primer setup
+
+```bash
+git clone https://github.com/neo3x/martin-coder.git
+cd martin-coder
+./martin.sh start          # Crea .env, instala deps, build, inicia
+```
+
+### Desarrollo diario
+
+```bash
+./martin.sh dev            # Sin Docker, hot reload
+# ... hacer cambios en código ...
+./martin.sh test           # Verificar que los tests pasen
+./martin.sh lint           # Verificar linting
+```
+
+### Despliegue con Docker
+
+```bash
+./martin.sh start          # Build y arranque con smart rebuild
+./martin.sh status         # Verificar salud
+./martin.sh logs api       # Ver logs del API
+```
+
+### Después de un `git pull`
+
+```bash
+./martin.sh update         # Pull + deps + rebuild automático
+# o
+git pull
+./martin.sh sync           # Solo reconstruye lo que cambió
+```
+
+### Debug de un problema
+
+```bash
+./martin.sh status         # Ver estado y health checks
+./martin.sh logs           # Ver todos los logs
+./martin.sh shell api      # Entrar al contenedor a investigar
+./martin.sh db studio      # Inspeccionar la base de datos
+```
+
+### Reset completo
+
+```bash
+./martin.sh clean          # Eliminar todo
+./martin.sh start          # Arrancar desde cero
+```
+
+---
+
+## Estructura del script
+
+```
+martin.sh / martin.bat
+├── Definición de colores y helpers
+│   ├── print_info / print_success / print_warning / print_error
+│   ├── command_exists (verificación de dependencias)
+│   └── detect_docker_compose (detección de docker compose v1/v2)
+├── Smart rebuild
+│   ├── check_rebuild_needed (compara timestamps de packages/)
+│   ├── reset_rebuild_flags
+│   └── print_rebuild_plan
+├── Comandos Docker
+│   ├── start_services (smart up con rebuild si es necesario)
+│   ├── stop_services (interactivo)
+│   ├── restart_services
+│   ├── show_status (health checks + menú rápido)
+│   ├── view_logs
+│   ├── build_containers (force rebuild)
+│   ├── sync_services (smart rebuild)
+│   ├── clean_all
+│   └── access_shell (api | web)
+├── Comandos de desarrollo
+│   ├── dev_mode (Bun dev, sin Docker)
+│   ├── run_tests (turbo run test)
+│   ├── run_lint (turbo run lint)
+│   ├── db_manage (migrate | generate | studio | reset)
+│   ├── update_project (git pull + bun install + rebuild)
+│   └── show_info
+├── show_help
+└── main (dispatcher: menú interactivo | comando directo)
+```
+
+---
+
+## Requisitos
+
+| Requisito | Versión mínima | Notas |
+|-----------|---------------|-------|
+| Bash | 4.0+ | Linux/macOS |
+| Docker | 24+ | Para comandos Docker |
+| Docker Compose | v2 (plugin) o v1 (`docker-compose`) | Auto-detectado |
+| Bun | 1.1+ | Para comandos de desarrollo |
+| Git | 2.40+ | Para el comando `update` |
+
+> En Windows, `martin.bat` requiere `cmd.exe` con soporte de `setlocal EnableDelayedExpansion` (disponible desde Windows XP).
+
+---
+
+## Códigos de salida
+
+| Código | Significado |
+|--------|-------------|
+| `0` | Éxito |
+| `1` | Error (con mensaje descriptivo) |
+
+---
+
+## URLs de acceso
+
+| Servicio | URL |
+|---------|-----|
+| Web UI | http://localhost:3000 |
+| API | http://localhost:8000 |
+| API Health | http://localhost:8000/health |
+| OpenAPI Spec | http://localhost:8000/openapi.json |
+| Drizzle Studio | http://localhost:4983 (solo con `db studio`) |
+
+---
+
+*Martin-Coder v2.0 — Script Guide — 2026*
