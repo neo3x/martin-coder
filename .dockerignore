@@ -1,6 +1,6 @@
 # ============================================
-# Docker Ignore File
-# Excludes files from Docker build context
+# Docker Ignore File — Martin-Coder v2.0
+# TypeScript/Bun Stack
 # ============================================
 
 # Git
@@ -8,101 +8,59 @@
 .gitignore
 .gitattributes
 
-# Node.js
+# Node.js / Bun
 **/node_modules
 **/.npm
 **/.pnpm-store
 
-# Next.js
+# Next.js build output (rebuilt inside container)
 **/.next
 **/out
-
-# Python
-**/__pycache__
-**/*.pyc
-**/*.pyo
-**/*.pyd
-**/.Python
-**/pip-log.txt
-**/.venv
-**/venv
-**/.env
-**/env
-**/*.egg-info
-**/.eggs
-**/.mypy_cache
-**/.pytest_cache
-**/.ruff_cache
-**/.coverage
-**/htmlcov
-**/.tox
 
 # IDEs and editors
 **/.idea
 **/.vscode
 **/*.swp
 **/*.swo
-**/.*~
 
 # OS files
 **/.DS_Store
 **/Thumbs.db
 
-# Docker
+# Docker files (not needed in build context)
 **/Dockerfile*
 **/docker-compose*.yml
 **/.docker
 
 # Documentation (not needed in containers)
-**/docs
 **/*.md
-!apps/*/README.md
 
-# Tests (optional - comment out if you need tests in container)
-# **/tests
-# **/test
-# **/*_test.py
-# **/test_*.py
-
-# Data and logs
+# Data and logs (mounted as volumes)
 **/data
 **/logs
 **/*.log
 
-# Local configuration
+# Environment files (passed via env_file in compose)
 **/.env
 **/.env.*
 !**/.env.example
 
-# Build artifacts
+# Build artifacts (rebuilt inside container)
 **/dist
-**/build
-**/*.egg
-**/.eggs
+
+# Python backup (not needed in containers)
+_python_backup
 
 # Temporary files
 **/tmp
 **/temp
 **/*.tmp
 
-# Sandbox data (will be mounted as volume)
-**/sandboxes
-
 # CI/CD
 **/.github
 **/.gitlab-ci.yml
-**/.travis.yml
 
 # Misc
 **/LICENSE
-**/CHANGELOG.md
-**/CONTRIBUTING.md
 **/.editorconfig
 **/.prettierrc*
-# **/.eslintrc*  # Commented out - Next.js may need eslint config
-# **/tsconfig*.json  # Commented out - Next.js needs tsconfig.json for build
-**/jest.config.*
-**/pytest.ini
-# **/setup.py  # Commented out - Python projects may need this
-# **/setup.cfg  # Commented out - Python projects may need this
-# **/pyproject.toml  # Commented out - Python projects may need this

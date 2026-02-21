@@ -7,15 +7,21 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# Install bun for workspace:* protocol support
+RUN npm install -g bun
+
 # Copy workspace manifests
-COPY package.json ./
+COPY package.json bun.lock* ./
 COPY packages/web/package.json ./packages/web/
 COPY packages/shared/package.json ./packages/shared/
 
-# Install all dependencies (including dev)
-RUN npm install --workspace=packages/web --workspace=packages/shared
+# Install all dependencies with bun
+RUN bun install --production=false
+
+# Copy shared package source (web depends on it)
+COPY packages/shared ./packages/shared
 
 EXPOSE 3000
 
-# Dev mode with hot reload
-CMD ["npm", "run", "--workspace=packages/web", "dev"]
+# Dev mode with hot reload (runs next dev via Node.js)
+CMD ["npx", "--prefix", "packages/web", "next", "dev"]
