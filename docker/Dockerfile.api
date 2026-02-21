@@ -4,12 +4,12 @@ FROM oven/bun:1.1-alpine AS builder
 WORKDIR /app
 
 # Copy workspace manifests
-COPY package.json bun.lock* bun.lockb* ./
+COPY package.json bun.lock* ./
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/api/package.json ./packages/api/
 
 # Install dependencies
-RUN bun install --frozen-lockfile --production=false
+RUN bun install --production=false
 
 # Copy source
 COPY packages/shared ./packages/shared
