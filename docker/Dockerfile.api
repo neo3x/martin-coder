@@ -1,5 +1,5 @@
 # ── Stage 1: Build ──────────────────────────────────────────
-FROM oven/bun:1.1-alpine AS builder
+FROM oven/bun:1.2-alpine AS builder
 
 WORKDIR /app
 
@@ -9,7 +9,7 @@ COPY packages/shared/package.json ./packages/shared/
 COPY packages/api/package.json ./packages/api/
 
 # Install dependencies
-RUN bun install --frozen-lockfile --production=false
+RUN bun install
 
 # Copy source
 COPY packages/shared ./packages/shared
@@ -20,7 +20,7 @@ COPY tsconfig.json ./
 RUN bun run --cwd packages/api build
 
 # ── Stage 2: Runtime ─────────────────────────────────────────
-FROM oven/bun:1.1-alpine AS runner
+FROM oven/bun:1.2-alpine AS runner
 
 WORKDIR /app
 

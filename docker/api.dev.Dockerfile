@@ -4,7 +4,7 @@
 # Hot reload via bun --watch
 # ============================================
 
-FROM oven/bun:1.1-alpine
+FROM oven/bun:1.2-alpine
 
 WORKDIR /app
 
@@ -17,7 +17,7 @@ COPY packages/shared/package.json ./packages/shared/
 COPY packages/api/package.json ./packages/api/
 
 # Install all dependencies
-RUN bun install --frozen-lockfile --production=false
+RUN bun install
 
 # Create data directory for SQLite
 RUN mkdir -p /data
