@@ -11,12 +11,12 @@ WORKDIR /app
 RUN npm install -g bun
 
 # Copy workspace manifests
-COPY package.json bun.lock* ./
+COPY package.json bun.lock* bun.lockb* ./
 COPY packages/web/package.json ./packages/web/
 COPY packages/shared/package.json ./packages/shared/
 
 # Install all dependencies with bun
-RUN bun install --production=false
+RUN bun install
 
 # Copy shared package source (web depends on it)
 COPY packages/shared ./packages/shared
