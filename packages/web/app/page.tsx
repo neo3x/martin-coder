@@ -9,12 +9,13 @@ import { EditorPanel } from "@/components/editor/editor-panel";
 import { TerminalPanel } from "@/components/terminal/terminal-panel";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { LoginForm } from "@/components/auth/login-form";
+import { useProjectStore } from "@/lib/stores/project-store";
 
 export default function Home() {
   const t = useTranslations("workspace");
   const { isAuthenticated, isLoading } = useAuthStore();
   const [showTerminal, setShowTerminal] = useState(false);
-  const [showEditor, setShowEditor] = useState(false);
+  const { editorOpen, setEditorOpen } = useProjectStore();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   if (isLoading) {
@@ -41,7 +42,7 @@ export default function Home() {
           <div className="flex-1 flex overflow-hidden">
             <div
               className={`${
-                showEditor
+                editorOpen
                   ? "hidden lg:flex lg:w-[420px] lg:min-w-[360px] lg:border-r lg:border-border/50"
                   : "flex"
               } flex-1 flex-col transition-all duration-300`}
@@ -49,9 +50,9 @@ export default function Home() {
               <ChatPanel />
             </div>
 
-            {showEditor && (
+            {editorOpen && (
               <div className="flex-1 min-w-0 flex flex-col animate-slide-up">
-                <EditorPanel onClose={() => setShowEditor(false)} />
+                <EditorPanel onClose={() => setEditorOpen(false)} />
               </div>
             )}
           </div>
@@ -80,34 +81,20 @@ export default function Home() {
         </button>
 
         <button
-          onClick={() => setShowEditor(!showEditor)}
-          className={`group relative fab ${showEditor ? 'bg-primary' : 'bg-card border border-border/50 text-foreground shadow-xl'}`}
-          title={showEditor ? t("hideEditor") : t("showEditor")}
+          onClick={() => setEditorOpen(!editorOpen)}
+          className={`group relative fab ${editorOpen ? 'bg-primary' : 'bg-card border border-border/50 text-foreground shadow-xl'}`}
+          title={editorOpen ? t("hideEditor") : t("showEditor")}
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
           </svg>
           {/* Tooltip */}
           <span className="absolute right-full mr-3 px-2 py-1 text-xs font-medium bg-foreground text-background rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-            {showEditor ? t("hideEditor") : t("showEditor")}
+            {editorOpen ? t("hideEditor") : t("showEditor")}
           </span>
         </button>
       </div>
 
-      <div className="fixed top-20 right-6 hidden lg:flex items-center gap-4 text-xs text-muted-foreground/60 bg-card/70 border border-border/50 rounded-xl px-3 py-2 backdrop-blur-md z-30">
-        <span className="flex items-center gap-1.5">
-          <kbd className="px-1.5 py-0.5 rounded bg-muted/50 font-mono text-[10px]">Ctrl</kbd>
-          <span>+</span>
-          <kbd className="px-1.5 py-0.5 rounded bg-muted/50 font-mono text-[10px]">`</kbd>
-          <span className="ml-1">{t("terminal")}</span>
-        </span>
-        <span className="flex items-center gap-1.5">
-          <kbd className="px-1.5 py-0.5 rounded bg-muted/50 font-mono text-[10px]">Ctrl</kbd>
-          <span>+</span>
-          <kbd className="px-1.5 py-0.5 rounded bg-muted/50 font-mono text-[10px]">E</kbd>
-          <span className="ml-1">{t("editor")}</span>
-        </span>
-      </div>
     </div>
   );
 }

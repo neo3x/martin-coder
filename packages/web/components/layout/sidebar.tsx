@@ -4,17 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { usePathname, useRouter } from "next/navigation";
 import { useChatStore } from "@/lib/stores/chat-store";
+import { useProjectStore, type ProjectItem } from "@/lib/stores/project-store";
 import { api } from "@/lib/api";
 
 interface SidebarProps {
   mobileOpen?: boolean;
   onCloseMobile?: () => void;
-}
-
-interface Project {
-  id: string;
-  name: string;
-  localPath?: string | null;
 }
 
 interface OAuthProvidersStatus {
@@ -38,7 +33,6 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const [projects, setProjects] = useState<Project[]>([]);
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [projectName, setProjectName] = useState("");
   const [projectPath, setProjectPath] = useState("");
@@ -54,6 +48,13 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
   const [loadingRepos, setLoadingRepos] = useState(false);
 
   const folderInputRef = useRef<HTMLInputElement | null>(null);
+  const {
+    projects,
+    fetchProjects,
+    createProject,
+    selectProject,
+    selectedProject,
+  } = useProjectStore();
 
   useEffect(() => {
     fetchChats();
@@ -62,15 +63,14 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
   useEffect(() => {
     const init = async () => {
       try {
-        const projectData = await api.get<{ projects: Project[] }>("/projects");
-        setProjects(projectData.projects || []);
+        await fetchProjects();
         setOauthStatus({ github: false, google: false });
       } catch (err) {
         console.error("Failed to initialize sidebar:", err);
       }
     };
     init();
-  }, []);
+  }, [fetchProjects]);
 
   const loadGitHubRepos = async () => {
     setLoadingRepos(true);
@@ -107,12 +107,13 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
     }
 
     try {
-      const data = await api.post<{ project: Project }>("/projects", {
+      const project = await createProject({
         name: projectName.trim(),
         localPath: projectPath.trim() || undefined,
         gitUrl: projectGitUrl.trim() || undefined,
       });
-      setProjects((prev) => [data.project, ...prev]);
+      await selectProject(project);
+      router.push("/");
       setProjectName("");
       setProjectPath("");
       setProjectGitUrl("");
@@ -130,7 +131,7 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
     const first = files[0] as File & { webkitRelativePath?: string };
     const relativePath = first.webkitRelativePath || first.name;
     const folderName = relativePath.split("/")[0] || relativePath;
-    setProjectPath(folderName);
+    setProjectPath("/workspace");
     if (!projectName.trim()) setProjectName(folderName);
   };
 
@@ -367,12 +368,12 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
                     className="w-full px-3 py-2 rounded-lg bg-secondary/60 border border-border/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                   />
                   <div className="flex flex-col gap-2">
-                    <input
-                      value={projectPath}
-                      onChange={(e) => setProjectPath(e.target.value)}
-                      placeholder="Project path"
-                      className="w-full px-3 py-2 rounded-lg bg-secondary/60 border border-border/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                    />
+                  <input
+                    value={projectPath}
+                    onChange={(e) => setProjectPath(e.target.value)}
+                    placeholder="/workspace"
+                    className="w-full px-3 py-2 rounded-lg bg-secondary/60 border border-border/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
                     <button
                       type="button"
                       onClick={handlePickFolder}
@@ -405,10 +406,24 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
               )}
               {projects.length > 0 && (
                 <div className="mt-2 space-y-1 max-h-24 overflow-y-auto">
-                  {projects.slice(0, 5).map((project) => (
-                    <div key={project.id} className="px-2 py-1.5 rounded-lg bg-secondary/40 text-xs truncate">
+                  {projects.slice(0, 8).map((project: ProjectItem) => (
+                    <button
+                      key={project.id}
+                      type="button"
+                      onClick={async () => {
+                        await selectProject(project);
+                        router.push("/");
+                        onCloseMobile?.();
+                      }}
+                      className={`w-full text-left px-2 py-1.5 rounded-lg text-xs truncate transition-colors ${
+                        selectedProject?.id === project.id
+                          ? "bg-primary/15 text-primary"
+                          : "bg-secondary/40 hover:bg-secondary/70"
+                      }`}
+                      title={project.localPath || project.name}
+                    >
                       {project.name}
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}

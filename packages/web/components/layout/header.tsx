@@ -82,8 +82,22 @@ export function Header({ onMenuClick }: HeaderProps) {
             <path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
           </svg>
         </div>
-        <div className="hidden sm:block">
+        <div className="hidden sm:flex items-center gap-3">
           <h1 className="text-lg font-bold tracking-tight">Martin-Coder</h1>
+          <div className="hidden lg:flex items-center gap-3 text-[11px] text-muted-foreground/80">
+            <span className="flex items-center gap-1">
+              <kbd className="px-1.5 py-0.5 rounded bg-muted/60 font-mono text-[10px]">Ctrl</kbd>
+              <span>+</span>
+              <kbd className="px-1.5 py-0.5 rounded bg-muted/60 font-mono text-[10px]">`</kbd>
+              <span>{t("workspace.terminal")}</span>
+            </span>
+            <span className="flex items-center gap-1">
+              <kbd className="px-1.5 py-0.5 rounded bg-muted/60 font-mono text-[10px]">Ctrl</kbd>
+              <span>+</span>
+              <kbd className="px-1.5 py-0.5 rounded bg-muted/60 font-mono text-[10px]">E</kbd>
+              <span>{t("workspace.editor")}</span>
+            </span>
+          </div>
         </div>
       </div>
 

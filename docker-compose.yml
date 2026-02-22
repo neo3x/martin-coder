@@ -17,10 +17,12 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_PATH: /data/martin-coder.db
+      WORKSPACE_ROOT: /workspace
     ports:
       - "${PORT:-8000}:8000"
     volumes:
       - db_data:/data
+      - ./:/workspace
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8000/health"]
       interval: 10s
