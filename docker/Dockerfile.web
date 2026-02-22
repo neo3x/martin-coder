@@ -19,9 +19,8 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy node_modules from deps stage
+# Copy node_modules from deps stage (bun hoists all deps to root)
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/packages/web/node_modules ./packages/web/node_modules
 
 # Copy source
 COPY package.json ./
