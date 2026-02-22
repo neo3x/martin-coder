@@ -14,6 +14,7 @@ interface SidebarProps {
 interface Project {
   id: string;
   name: string;
+  localPath?: string | null;
 }
 
 interface OAuthProvidersStatus {
@@ -61,12 +62,9 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
   useEffect(() => {
     const init = async () => {
       try {
-        const [projectData, oauthData] = await Promise.all([
-          api.get<Project[]>("/api/v1/projects"),
-          api.get<OAuthProvidersStatus>("/api/v1/oauth/providers"),
-        ]);
-        setProjects(projectData);
-        setOauthStatus(oauthData);
+        const projectData = await api.get<{ projects: Project[] }>("/projects");
+        setProjects(projectData.projects || []);
+        setOauthStatus({ github: false, google: false });
       } catch (err) {
         console.error("Failed to initialize sidebar:", err);
       }
@@ -77,10 +75,9 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
   const loadGitHubRepos = async () => {
     setLoadingRepos(true);
     try {
-      const repos = await api.get<GitHubRepo[]>("/api/v1/oauth/github/repos");
-      setGithubRepos(repos);
+      setGithubRepos([]);
       setGithubConnected(true);
-      setGithubError(null);
+      setGithubError("GitHub integration is not available in API v2 yet");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "GitHub not connected";
       setGithubError(message);
@@ -110,12 +107,12 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
     }
 
     try {
-      const project = await api.post<Project>("/api/v1/projects", {
+      const data = await api.post<{ project: Project }>("/projects", {
         name: projectName.trim(),
-        local_path: projectPath.trim() || undefined,
-        git_url: projectGitUrl.trim() || undefined,
+        localPath: projectPath.trim() || undefined,
+        gitUrl: projectGitUrl.trim() || undefined,
       });
-      setProjects((prev) => [project, ...prev]);
+      setProjects((prev) => [data.project, ...prev]);
       setProjectName("");
       setProjectPath("");
       setProjectGitUrl("");
@@ -140,7 +137,7 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
   const handleGitHubTokenConnect = async () => {
     setGithubError(null);
     try {
-      await api.post("/api/v1/oauth/github/token", { token: githubToken });
+      await Promise.resolve();
       setGithubToken("");
       await loadGitHubRepos();
     } catch (err: unknown) {
@@ -151,11 +148,7 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
   const handleGitHubOAuthConnect = async () => {
     setGithubError(null);
     try {
-      const redirectUri = window.location.origin;
-      const data = await api.get<{ authorization_url: string }>(
-        `/api/v1/oauth/github/authorize?redirect_uri=${encodeURIComponent(redirectUri)}`
-      );
-      window.location.href = data.authorization_url;
+      setGithubError("GitHub OAuth is not available in API v2 yet");
     } catch (err: unknown) {
       setGithubError(err instanceof Error ? err.message : "GitHub OAuth is not configured");
     }
