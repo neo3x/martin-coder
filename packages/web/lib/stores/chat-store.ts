@@ -3,7 +3,10 @@ import { api } from "@/lib/api";
 import { useModelStore } from "@/lib/stores/model-store";
 import type { Chat, ChatMessage } from "@/lib/types";
 
-interface ChatCreatePayload {
+// Re-export Session as an alias for Chat
+export type Session = Chat;
+
+interface SessionCreatePayload {
   title: string;
   project_id?: string;
 }
@@ -11,6 +14,28 @@ interface ChatCreatePayload {
 interface StreamChunk {
   type?: string;
   content?: string;
+  tool_call_id?: string;
+  tool_name?: string;
+  tool_args?: Record<string, unknown>;
+  tool_result?: unknown;
+  tool_error?: string;
+  usage?: UsageInfo;
+  cost?: number;
+}
+
+interface UsageInfo {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+
+export interface StreamingToolCall {
+  id: string;
+  name: string;
+  arguments: Record<string, unknown>;
+  result?: unknown;
+  error?: string;
+  status: "calling" | "done" | "error";
 }
 
 interface SessionDto {
@@ -53,41 +78,63 @@ function mapMessageToChatMessage(message: MessageDto): ChatMessage {
 }
 
 interface ChatStore {
-  chats: Chat[];
-  currentChat: Chat | null;
+  // Session list
+  sessions: Chat[];
+  currentSession: Chat | null;
   messages: ChatMessage[];
+
+  // Streaming state
   isStreaming: boolean;
   streamingContent: string;
-  fetchChats: () => Promise<void>;
-  selectChat: (chatId: string) => Promise<void>;
-  createChat: (payload: ChatCreatePayload) => Promise<Chat>;
-  deleteChat: (chatId: string) => Promise<void>;
+  streamingToolCalls: StreamingToolCall[];
+
+  // Usage / cost of last response
+  lastUsage: UsageInfo | null;
+  lastCost: number;
+
+  // Agent mode
+  selectedAgent: "build" | "plan";
+  setAgent: (agent: "build" | "plan") => void;
+
+  // Session CRUD
+  fetchSessions: () => Promise<void>;
+  selectSession: (sessionId: string) => Promise<void>;
+  createSession: (payload: SessionCreatePayload) => Promise<Chat>;
+  deleteSession: (sessionId: string) => Promise<void>;
+
+  // Messaging
   sendMessage: (message: string) => Promise<void>;
-  updateCurrentChatModel: (provider: string, model: string) => Promise<void>;
+  updateSessionModel: (provider: string, model: string) => Promise<void>;
 }
 
 export const useChatStore = create<ChatStore>((set, get) => ({
-  chats: [],
-  currentChat: null,
+  sessions: [],
+  currentSession: null,
   messages: [],
   isStreaming: false,
   streamingContent: "",
+  streamingToolCalls: [],
+  lastUsage: null,
+  lastCost: 0,
+  selectedAgent: "build",
 
-  fetchChats: async () => {
+  setAgent: (agent) => set({ selectedAgent: agent }),
+
+  fetchSessions: async () => {
     const data = await api.get<{ sessions: SessionDto[] }>("/sessions");
-    set({ chats: (data.sessions || []).map(mapSessionToChat) });
+    set({ sessions: (data.sessions || []).map(mapSessionToChat) });
   },
 
-  selectChat: async (chatId: string) => {
-    const data = await api.get<{ session: SessionDto }>(`/sessions/${chatId}`);
+  selectSession: async (sessionId: string) => {
+    const data = await api.get<{ session: SessionDto }>(`/sessions/${sessionId}`);
     const chat = mapSessionToChat(data.session);
     set({
-      currentChat: chat,
+      currentSession: chat,
       messages: (data.session.messages || []).map(mapMessageToChatMessage),
     });
   },
 
-  createChat: async (payload) => {
+  createSession: async (payload) => {
     const { selectedProvider, selectedModel } = useModelStore.getState();
     const data = await api.post<{ session: SessionDto }>("/sessions", {
       title: payload.title,
@@ -96,26 +143,22 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       model: selectedModel,
     });
     const chat = mapSessionToChat(data.session);
-
     set((state) => ({
-      chats: [chat, ...state.chats],
-      currentChat: chat,
+      sessions: [chat, ...state.sessions],
+      currentSession: chat,
       messages: [],
     }));
-
     return chat;
   },
 
-  deleteChat: async (chatId) => {
-    await api.delete(`/sessions/${chatId}`);
-
+  deleteSession: async (sessionId) => {
+    await api.delete(`/sessions/${sessionId}`);
     set((state) => {
-      const chats = state.chats.filter((chat) => chat.id !== chatId);
-      const isCurrent = state.currentChat?.id === chatId;
-
+      const sessions = state.sessions.filter((s) => s.id !== sessionId);
+      const isCurrent = state.currentSession?.id === sessionId;
       return {
-        chats,
-        currentChat: isCurrent ? null : state.currentChat,
+        sessions,
+        currentSession: isCurrent ? null : state.currentSession,
         messages: isCurrent ? [] : state.messages,
       };
     });
@@ -123,13 +166,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   sendMessage: async (content) => {
     const state = get();
-    if (!state.currentChat) {
-      throw new Error("No active chat");
+    if (!state.currentSession) {
+      throw new Error("No active session");
     }
 
     const optimisticUserMessage: ChatMessage = {
       id: crypto.randomUUID(),
-      chat_id: state.currentChat.id,
+      chat_id: state.currentSession.id,
       role: "user",
       content,
       created_at: new Date().toISOString(),
@@ -139,21 +182,48 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       messages: [...prev.messages, optimisticUserMessage],
       isStreaming: true,
       streamingContent: "",
+      streamingToolCalls: [],
+      lastUsage: null,
+      lastCost: 0,
     }));
 
     try {
       await api.stream(
-        `/sessions/${state.currentChat.id}/messages`,
-        {
-          content,
-        },
+        `/sessions/${state.currentSession.id}/messages`,
+        { content, agent: state.selectedAgent },
         {
           onEvent: (event) => {
             const chunk = event as StreamChunk;
+
             if (chunk.type === "text" && chunk.content) {
               set((prev) => ({
                 streamingContent: `${prev.streamingContent}${chunk.content}`,
               }));
+            } else if (chunk.type === "tool_call_start") {
+              const newTc: StreamingToolCall = {
+                id: chunk.tool_call_id ?? crypto.randomUUID(),
+                name: chunk.tool_name ?? "unknown",
+                arguments: chunk.tool_args ?? {},
+                status: "calling",
+              };
+              set((prev) => ({
+                streamingToolCalls: [...prev.streamingToolCalls, newTc],
+              }));
+            } else if (chunk.type === "tool_call_result") {
+              set((prev) => ({
+                streamingToolCalls: prev.streamingToolCalls.map((tc) =>
+                  tc.id === chunk.tool_call_id
+                    ? {
+                        ...tc,
+                        result: chunk.tool_result,
+                        error: chunk.tool_error,
+                        status: chunk.tool_error ? "error" : "done",
+                      }
+                    : tc
+                ),
+              }));
+            } else if (chunk.type === "usage" && chunk.usage) {
+              set({ lastUsage: chunk.usage, lastCost: chunk.cost ?? 0 });
             }
           },
           onDone: async () => {
@@ -162,23 +232,23 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             if (latestContent.trim()) {
               const assistantMessage: ChatMessage = {
                 id: crypto.randomUUID(),
-                chat_id: state.currentChat!.id,
+                chat_id: state.currentSession!.id,
                 role: "assistant",
                 content: latestContent,
                 created_at: new Date().toISOString(),
               };
-
               set((prev) => ({
                 messages: [...prev.messages, assistantMessage],
                 isStreaming: false,
                 streamingContent: "",
+                streamingToolCalls: [],
               }));
             } else {
-              set({ isStreaming: false, streamingContent: "" });
+              set({ isStreaming: false, streamingContent: "", streamingToolCalls: [] });
             }
 
-            await get().selectChat(state.currentChat!.id);
-            await get().fetchChats();
+            await get().selectSession(state.currentSession!.id);
+            await get().fetchSessions();
           },
         }
       );
@@ -186,7 +256,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const message = error instanceof Error ? error.message : "Failed to send message";
       const assistantError: ChatMessage = {
         id: crypto.randomUUID(),
-        chat_id: state.currentChat.id,
+        chat_id: state.currentSession.id,
         role: "assistant",
         content: `Error: ${message}`,
         created_at: new Date().toISOString(),
@@ -195,22 +265,22 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         messages: [...prev.messages, assistantError],
         isStreaming: false,
         streamingContent: "",
+        streamingToolCalls: [],
       }));
     }
   },
 
-  updateCurrentChatModel: async (provider, model) => {
-    const chat = get().currentChat;
-    if (!chat) return;
+  updateSessionModel: async (provider, model) => {
+    const session = get().currentSession;
+    if (!session) return;
     const updated: Chat = {
-      ...chat,
+      ...session,
       ai_provider: provider,
       ai_model: model,
     };
-
     set((state) => ({
-      currentChat: updated,
-      chats: state.chats.map((item) => (item.id === updated.id ? updated : item)),
+      currentSession: updated,
+      sessions: state.sessions.map((s) => (s.id === updated.id ? updated : s)),
     }));
   },
 }));
