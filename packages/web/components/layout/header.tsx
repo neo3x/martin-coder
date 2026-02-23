@@ -61,7 +61,7 @@ export function Header({ onMenuClick }: HeaderProps) {
 
   return (
     <header className="h-12 flex-shrink-0 flex items-center justify-between px-3 border-b border-border/50 bg-card/60 backdrop-blur-xl sticky top-0 z-30">
-      {/* Left: hamburger (mobile) */}
+      {/* Left: hamburger (mobile) + logo + session title */}
       <div className="flex items-center gap-2 min-w-0">
         <button
           type="button"
@@ -74,12 +74,37 @@ export function Header({ onMenuClick }: HeaderProps) {
           </svg>
         </button>
 
-        {/* Session title (desktop only, truncated) */}
-        {currentSession && (
-          <span className="hidden md:block text-xs text-muted-foreground truncate max-w-[200px] lg:max-w-[320px]">
-            {currentSession.title}
-          </span>
-        )}
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-lg shadow-primary/20">
+          <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+          </svg>
+        </div>
+
+        <div className="hidden sm:flex items-center gap-3 min-w-0">
+          {currentSession ? (
+            <span className="text-xs text-muted-foreground truncate max-w-[200px] lg:max-w-[320px]">
+              {currentSession.title}
+            </span>
+          ) : (
+            <>
+              <h1 className="text-lg font-bold tracking-tight">Martin-Coder</h1>
+              <div className="hidden lg:flex items-center gap-3 text-[11px] text-muted-foreground/80">
+                <span className="flex items-center gap-1">
+                  <kbd className="px-1.5 py-0.5 rounded bg-muted/60 font-mono text-[10px]">Ctrl</kbd>
+                  <span>+</span>
+                  <kbd className="px-1.5 py-0.5 rounded bg-muted/60 font-mono text-[10px]">`</kbd>
+                  <span>{t("workspace.terminal")}</span>
+                </span>
+                <span className="flex items-center gap-1">
+                  <kbd className="px-1.5 py-0.5 rounded bg-muted/60 font-mono text-[10px]">Ctrl</kbd>
+                  <span>+</span>
+                  <kbd className="px-1.5 py-0.5 rounded bg-muted/60 font-mono text-[10px]">E</kbd>
+                  <span>{t("workspace.editor")}</span>
+                </span>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Right: provider/model selectors + theme + user */}

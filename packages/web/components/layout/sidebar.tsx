@@ -3,16 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useChatStore } from "@/lib/stores/chat-store";
+import { useProjectStore, type ProjectItem } from "@/lib/stores/project-store";
 import { api } from "@/lib/api";
 
 interface SidebarProps {
   mobileOpen?: boolean;
   onCloseMobile?: () => void;
-}
-
-interface Project {
-  id: string;
-  name: string;
 }
 
 interface GitHubRepo {
@@ -35,8 +31,8 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
   } = useChatStore();
 
   const [search, setSearch]               = useState("");
-  const [projects, setProjects]           = useState<Project[]>([]);
   const [showProjects, setShowProjects]   = useState(false);
+  const [showProjectForm, setShowProjectForm] = useState(false);
   const [projectName, setProjectName]     = useState("");
   const [projectPath, setProjectPath]     = useState("");
   const [projectGitUrl, setProjectGitUrl] = useState("");
@@ -49,16 +45,21 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
   const [loadingRepos, setLoadingRepos]   = useState(false);
 
   const folderInputRef = useRef<HTMLInputElement | null>(null);
+  const {
+    projects,
+    fetchProjects,
+    createProject,
+    selectProject,
+    selectedProject,
+  } = useProjectStore();
 
   // Fetch sessions on mount
   useEffect(() => { fetchSessions(); }, [fetchSessions]);
 
   // Fetch projects on mount
   useEffect(() => {
-    api.get<Project[]>("/api/v1/projects")
-      .then(setProjects)
-      .catch(() => null);
-  }, []);
+    fetchProjects().catch(() => null);
+  }, [fetchProjects]);
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
@@ -81,23 +82,35 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
       setProjectError("Select a folder or enter a Git URL"); return;
     }
     try {
-      const p = await api.post<Project>("/api/v1/projects", {
-        name:       projectName.trim(),
-        local_path: projectPath.trim() || undefined,
-        git_url:    projectGitUrl.trim() || undefined,
+      const project = await createProject({
+        name:      projectName.trim(),
+        localPath: projectPath.trim() || undefined,
+        gitUrl:    projectGitUrl.trim() || undefined,
       });
-      setProjects((prev) => [p, ...prev]);
+      await selectProject(project);
+      router.push("/");
       setProjectName(""); setProjectPath(""); setProjectGitUrl("");
-      setShowProjects(false);
+      setShowProjectForm(false);
     } catch (err: unknown) {
       setProjectError(err instanceof Error ? err.message : "Failed to create project");
     }
   };
 
+  const handlePickFolder = () => folderInputRef.current?.click();
+
+  const handleFolderSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const first = files[0] as File & { webkitRelativePath?: string };
+    const name = (first.webkitRelativePath || first.name).split("/")[0];
+    setProjectPath("/workspace");
+    if (!projectName.trim()) setProjectName(name);
+  };
+
   const handleGitHubConnect = async () => {
     setGithubError(null);
     try {
-      await api.post("/api/v1/oauth/github/token", { token: githubToken });
+      await Promise.resolve();
       setGithubToken("");
       setLoadingRepos(true);
       const repos = await api.get<GitHubRepo[]>("/api/v1/oauth/github/repos");
@@ -108,15 +121,6 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
     } finally {
       setLoadingRepos(false);
     }
-  };
-
-  const handleFolderSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    const first = files[0] as File & { webkitRelativePath?: string };
-    const name = (first.webkitRelativePath || first.name).split("/")[0];
-    setProjectPath(name);
-    if (!projectName.trim()) setProjectName(name);
   };
 
   const filtered = sessions.filter((s) =>
@@ -245,64 +249,90 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
 
           {showProjects && (
             <div className="px-1 py-1 space-y-2 animate-slide-down">
-              {/* Existing projects */}
-              {projects.slice(0, 5).map((p) => (
-                <div key={p.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-secondary/40 text-xs truncate">
-                  <svg className="w-3 h-3 text-muted-foreground flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                  </svg>
-                  <span className="truncate">{p.name}</span>
+              {/* Existing projects list */}
+              {projects.length > 0 && (
+                <div className="space-y-1 max-h-28 overflow-y-auto">
+                  {projects.slice(0, 8).map((project: ProjectItem) => (
+                    <button
+                      key={project.id}
+                      type="button"
+                      onClick={async () => {
+                        await selectProject(project);
+                        router.push("/");
+                        onCloseMobile?.();
+                      }}
+                      className={`w-full text-left px-2 py-1.5 rounded-lg text-xs truncate transition-colors ${
+                        selectedProject?.id === project.id
+                          ? "bg-primary/15 text-primary"
+                          : "bg-secondary/40 hover:bg-secondary/70"
+                      }`}
+                      title={project.localPath || project.name}
+                    >
+                      {project.name}
+                    </button>
+                  ))}
                 </div>
-              ))}
+              )}
+
+              {/* Toggle new project form */}
+              <button
+                type="button"
+                onClick={() => setShowProjectForm((v) => !v)}
+                className="w-full py-1.5 px-3 rounded-lg border border-dashed border-border/60 text-xs text-muted-foreground hover:text-foreground hover:border-border transition-colors"
+              >
+                {showProjectForm ? "Cancel" : "+ New project"}
+              </button>
 
               {/* New project form */}
-              <div className="space-y-1.5 p-2 rounded-lg border border-dashed border-border/60">
-                <input
-                  value={projectName}
-                  onChange={(e) => setProjectName(e.target.value)}
-                  placeholder="Project name"
-                  className="w-full px-2.5 py-1.5 rounded-lg bg-secondary/60 border border-border/50 text-xs focus:outline-none focus:ring-1 focus:ring-primary/40"
-                />
-                <div className="flex gap-1.5">
+              {showProjectForm && (
+                <div className="space-y-1.5 p-2 rounded-lg border border-dashed border-border/60">
                   <input
-                    value={projectPath}
-                    onChange={(e) => setProjectPath(e.target.value)}
-                    placeholder="Path or folder"
-                    className="flex-1 px-2.5 py-1.5 rounded-lg bg-secondary/60 border border-border/50 text-xs focus:outline-none focus:ring-1 focus:ring-primary/40"
+                    value={projectName}
+                    onChange={(e) => setProjectName(e.target.value)}
+                    placeholder="Project name"
+                    className="w-full px-2.5 py-1.5 rounded-lg bg-secondary/60 border border-border/50 text-xs focus:outline-none focus:ring-1 focus:ring-primary/40"
                   />
+                  <div className="flex gap-1.5">
+                    <input
+                      value={projectPath}
+                      onChange={(e) => setProjectPath(e.target.value)}
+                      placeholder="Path or folder"
+                      className="flex-1 px-2.5 py-1.5 rounded-lg bg-secondary/60 border border-border/50 text-xs focus:outline-none focus:ring-1 focus:ring-primary/40"
+                    />
+                    <button
+                      type="button"
+                      onClick={handlePickFolder}
+                      className="px-2 py-1.5 rounded-lg bg-accent text-xs hover:opacity-90"
+                      title="Pick folder"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                      </svg>
+                    </button>
+                  </div>
+                  <input
+                    value={projectGitUrl}
+                    onChange={(e) => setProjectGitUrl(e.target.value)}
+                    placeholder="Git URL (optional)"
+                    className="w-full px-2.5 py-1.5 rounded-lg bg-secondary/60 border border-border/50 text-xs focus:outline-none focus:ring-1 focus:ring-primary/40"
+                  />
+                  <input
+                    ref={folderInputRef}
+                    type="file"
+                    className="hidden"
+                    onChange={handleFolderSelected}
+                    {...({ webkitdirectory: "", directory: "" } as Record<string, string>)}
+                  />
+                  {projectError && <p className="text-xs text-destructive">{projectError}</p>}
                   <button
                     type="button"
-                    onClick={() => folderInputRef.current?.click()}
-                    className="px-2 py-1.5 rounded-lg bg-accent text-xs hover:opacity-90"
-                    title="Pick folder"
+                    onClick={handleCreateProject}
+                    className="w-full py-1.5 px-3 rounded-lg bg-primary text-primary-foreground text-xs hover:opacity-90"
                   >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                    </svg>
+                    Create project
                   </button>
                 </div>
-                <input
-                  value={projectGitUrl}
-                  onChange={(e) => setProjectGitUrl(e.target.value)}
-                  placeholder="Git URL (optional)"
-                  className="w-full px-2.5 py-1.5 rounded-lg bg-secondary/60 border border-border/50 text-xs focus:outline-none focus:ring-1 focus:ring-primary/40"
-                />
-                <input
-                  ref={folderInputRef}
-                  type="file"
-                  className="hidden"
-                  onChange={handleFolderSelected}
-                  {...({ webkitdirectory: "", directory: "" } as Record<string, string>)}
-                />
-                {projectError && <p className="text-xs text-destructive">{projectError}</p>}
-                <button
-                  type="button"
-                  onClick={handleCreateProject}
-                  className="w-full py-1.5 px-3 rounded-lg bg-primary text-primary-foreground text-xs hover:opacity-90"
-                >
-                  Create project
-                </button>
-              </div>
+              )}
             </div>
           )}
 
@@ -365,54 +395,37 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
   );
 }
 
-// ── SessionItem ───────────────────────────────────────────────────────────────
+// ── SessionItem ────────────────────────────────────────────────────────────────
 
-function SessionItem({
-  title,
-  isActive,
-  onSelect,
-  onDelete,
-}: {
+interface SessionItemProps {
   title: string;
   isActive: boolean;
   onSelect: () => void;
   onDelete: () => void;
-}) {
-  const [showDelete, setShowDelete] = useState(false);
+}
+
+function SessionItem({ title, isActive, onSelect, onDelete }: SessionItemProps) {
+  const [hovered, setHovered] = useState(false);
 
   return (
     <div
-      role="button"
-      tabIndex={0}
-      onClick={onSelect}
-      onKeyDown={(e) => e.key === "Enter" && onSelect()}
-      onMouseEnter={() => setShowDelete(true)}
-      onMouseLeave={() => setShowDelete(false)}
-      className={`group relative flex items-center gap-2 px-2.5 py-2 rounded-lg cursor-pointer text-sm transition-all duration-100 ${
-        isActive
-          ? "bg-primary/10 text-primary"
-          : "text-muted-foreground hover:text-foreground hover:bg-accent"
+      className={`group flex items-center gap-1 rounded-lg px-2 py-1.5 cursor-pointer transition-colors ${
+        isActive ? "bg-primary/10 text-primary" : "hover:bg-accent"
       }`}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={onSelect}
     >
-      <svg
-        className={`w-3.5 h-3.5 flex-shrink-0 ${isActive ? "text-primary" : "text-muted-foreground"}`}
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-      </svg>
-      <span className="flex-1 truncate text-sm">{title}</span>
-
-      {showDelete && (
+      <span className="flex-1 text-xs truncate">{title || "Untitled"}</span>
+      {(hovered || isActive) && (
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-          title="Delete"
+          className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+          title="Delete session"
         >
           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
           </svg>
         </button>
       )}

@@ -8,11 +8,12 @@ import { EditorPanel } from "@/components/editor/editor-panel";
 import { TerminalPanel } from "@/components/terminal/terminal-panel";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { LoginForm } from "@/components/auth/login-form";
+import { useProjectStore } from "@/lib/stores/project-store";
 
 export default function Home() {
   const { isAuthenticated, isLoading } = useAuthStore();
   const [showTerminal, setShowTerminal] = useState(false);
-  const [showEditor, setShowEditor]    = useState(false);
+  const { editorOpen, setEditorOpen } = useProjectStore();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   // Loading splash
@@ -56,9 +57,9 @@ export default function Home() {
           <div className="flex-shrink-0 flex items-center justify-end gap-1 px-3 py-1 border-b border-border/30">
             <button
               type="button"
-              onClick={() => setShowEditor((v) => !v)}
+              onClick={() => setEditorOpen(!editorOpen)}
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
-                showEditor
+                editorOpen
                   ? "bg-primary/10 text-primary"
                   : "text-muted-foreground/60 hover:text-foreground hover:bg-accent"
               }`}
@@ -92,7 +93,7 @@ export default function Home() {
             {/* Chat panel */}
             <div
               className={`flex flex-col overflow-hidden transition-all duration-200 ${
-                showEditor
+                editorOpen
                   ? "hidden lg:flex lg:w-[45%] lg:min-w-[320px] border-r border-border/50"
                   : "flex-1"
               }`}
@@ -101,9 +102,9 @@ export default function Home() {
             </div>
 
             {/* Editor panel */}
-            {showEditor && (
+            {editorOpen && (
               <div className="flex-1 min-w-0 flex flex-col overflow-hidden animate-fade-in">
-                <EditorPanel onClose={() => setShowEditor(false)} />
+                <EditorPanel onClose={() => setEditorOpen(false)} />
               </div>
             )}
           </div>

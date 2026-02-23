@@ -1,25 +1,33 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { api } from "@/lib/api";
+import { useProjectStore } from "@/lib/stores/project-store";
 
 interface TerminalPanelProps {
   onClose: () => void;
 }
 
+interface ExecResponse {
+  ok: boolean;
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+}
+
 export function TerminalPanel({ onClose }: TerminalPanelProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const terminalInstance = useRef<any>(null);
+  const commandBuffer = useRef("");
+  const { selectedProject } = useProjectStore();
 
   useEffect(() => {
-    // Dynamic import for xterm (client-side only)
     const initTerminal = async () => {
       if (!terminalRef.current || terminalInstance.current) return;
 
       const { Terminal } = await import("xterm");
       const { FitAddon } = await import("xterm-addon-fit");
       const { WebLinksAddon } = await import("xterm-addon-web-links");
-
-      // Import CSS
       await import("xterm/css/xterm.css");
 
       const terminal = new Terminal({
@@ -27,122 +35,131 @@ export function TerminalPanel({ onClose }: TerminalPanelProps) {
         fontSize: 14,
         fontFamily: 'Menlo, Monaco, "Courier New", monospace',
         theme: {
-          background: "#1a1b26",
-          foreground: "#c0caf5",
-          cursor: "#c0caf5",
-          black: "#15161e",
-          red: "#f7768e",
-          green: "#9ece6a",
-          yellow: "#e0af68",
-          blue: "#7aa2f7",
-          magenta: "#bb9af7",
-          cyan: "#7dcfff",
-          white: "#a9b1d6",
+          background: "#111827",
+          foreground: "#d1d5db",
+          cursor: "#f9fafb",
         },
       });
 
       const fitAddon = new FitAddon();
       terminal.loadAddon(fitAddon);
       terminal.loadAddon(new WebLinksAddon());
-
       terminal.open(terminalRef.current);
       fitAddon.fit();
 
-      // Welcome message
-      terminal.writeln("\x1b[1;34m  Martin-Coder Terminal\x1b[0m");
-      terminal.writeln("  Type commands to execute in your project\n");
-      terminal.write("$ ");
+      const cwd = selectedProject?.localPath || "/workspace";
+      terminal.writeln("\x1b[1;36mMartin-Coder Terminal\x1b[0m");
+      terminal.writeln(`cwd: ${cwd}`);
+      terminal.writeln("Type commands and press Enter.\n");
 
-      // Handle input
-      let command = "";
+      const prompt = () => terminal.write("\x1b[32m$\x1b[0m ");
+      prompt();
+
+      const runCommand = async (command: string) => {
+        if (!command.trim()) {
+          prompt();
+          return;
+        }
+
+        if (command.trim() === "clear") {
+          terminal.clear();
+          prompt();
+          return;
+        }
+
+        try {
+          const result = await api.post<ExecResponse>("/files/exec", {
+            command,
+            cwd,
+            timeoutMs: 30000,
+          });
+
+          if (result.stdout) {
+            terminal.write(result.stdout.replace(/\n/g, "\r\n"));
+            if (!result.stdout.endsWith("\n")) terminal.write("\r\n");
+          }
+          if (result.stderr) {
+            terminal.write(`\x1b[31m${result.stderr.replace(/\n/g, "\r\n")}\x1b[0m`);
+            if (!result.stderr.endsWith("\n")) terminal.write("\r\n");
+          }
+
+          if (!result.ok) {
+            terminal.writeln(`\x1b[31mexit code: ${result.exitCode}\x1b[0m`);
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "Command failed";
+          terminal.writeln(`\x1b[31m${message}\x1b[0m`);
+        }
+
+        prompt();
+      };
+
       terminal.onData((data) => {
         switch (data) {
-          case "\r": // Enter
+          case "\r":
             terminal.writeln("");
-            if (command.trim()) {
-              // Here you would send the command to the backend
-              terminal.writeln(`Executing: ${command}`);
-              terminal.writeln("(Command execution not yet connected to backend)\n");
+            {
+              const cmd = commandBuffer.current;
+              commandBuffer.current = "";
+              void runCommand(cmd);
             }
-            command = "";
-            terminal.write("$ ");
             break;
-          case "\u007F": // Backspace
-            if (command.length > 0) {
-              command = command.slice(0, -1);
+          case "\u007F":
+            if (commandBuffer.current.length > 0) {
+              commandBuffer.current = commandBuffer.current.slice(0, -1);
               terminal.write("\b \b");
             }
             break;
-          case "\u0003": // Ctrl+C
-            command = "";
+          case "\u0003":
+            commandBuffer.current = "";
             terminal.writeln("^C");
-            terminal.write("$ ");
+            prompt();
             break;
           default:
             if (data >= String.fromCharCode(32)) {
-              command += data;
+              commandBuffer.current += data;
               terminal.write(data);
             }
         }
       });
 
-      // Handle resize
       const handleResize = () => fitAddon.fit();
       window.addEventListener("resize", handleResize);
-
-      terminalInstance.current = { terminal, fitAddon };
-
-      return () => {
-        window.removeEventListener("resize", handleResize);
-        terminal.dispose();
-      };
+      terminalInstance.current = { terminal, fitAddon, handleResize };
     };
 
-    initTerminal();
-  }, []);
+    void initTerminal();
+
+    return () => {
+      const inst = terminalInstance.current;
+      if (inst?.handleResize) {
+        window.removeEventListener("resize", inst.handleResize);
+      }
+      if (inst?.terminal) {
+        inst.terminal.dispose();
+      }
+      terminalInstance.current = null;
+    };
+  }, [selectedProject?.localPath]);
 
   return (
-    <div className="h-full flex flex-col bg-[#1a1b26]">
-      {/* Header */}
+    <div className="h-full flex flex-col bg-[#111827]">
       <div className="h-8 flex items-center justify-between px-4 bg-card border-b">
         <div className="flex items-center gap-2">
-          <svg
-            className="w-4 h-4 text-muted-foreground"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-            />
-          </svg>
           <span className="text-sm">Terminal</span>
+          <span className="text-xs text-muted-foreground truncate max-w-[280px]">
+            {selectedProject?.localPath || "/workspace"}
+          </span>
         </div>
-        <button
-          onClick={onClose}
-          className="p-1 hover:bg-accent rounded"
-        >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
+        <button onClick={onClose} className="p-1 hover:bg-accent rounded">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
       </div>
 
-      {/* Terminal */}
       <div ref={terminalRef} className="flex-1" />
     </div>
   );
 }
+

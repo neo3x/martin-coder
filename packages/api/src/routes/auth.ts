@@ -90,6 +90,9 @@ authRoutes.post('/register', zValidator('json', registerSchema), async (c) => {
         },
         accessToken,
         refreshToken,
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        token_type: 'bearer',
       },
       201
     )
@@ -143,6 +146,9 @@ authRoutes.post('/login', zValidator('json', loginSchema), async (c) => {
       },
       accessToken,
       refreshToken,
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      token_type: 'bearer',
     })
   } catch (err) {
     console.error('[Auth] Login error:', err)
@@ -168,7 +174,13 @@ authRoutes.post('/refresh', zValidator('json', refreshSchema), async (c) => {
     const newAccessToken = await createAccessToken(user.id)
     const newRefreshToken = await createRefreshToken(user.id)
 
-    return c.json({ accessToken: newAccessToken, refreshToken: newRefreshToken })
+    return c.json({
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
+      access_token: newAccessToken,
+      refresh_token: newRefreshToken,
+      token_type: 'bearer',
+    })
   } catch (err) {
     return c.json({ error: 'Invalid or expired refresh token' }, 401)
   }

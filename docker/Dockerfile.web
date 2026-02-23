@@ -19,11 +19,15 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Install bun to run workspace build scripts consistently
+RUN npm install -g bun
+
 # Copy node_modules from deps stage (bun hoists all deps to root)
 COPY --from=deps /app/node_modules ./node_modules
 
 # Copy source
 COPY package.json ./
+COPY bun.lock* bun.lockb* ./
 COPY packages/web ./packages/web
 COPY packages/shared ./packages/shared
 COPY tsconfig.json ./
@@ -31,7 +35,8 @@ COPY tsconfig.json ./
 # Build Next.js with Node.js (full compatibility)
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
-RUN cd packages/web && npx next build
+RUN bun install
+RUN bun run --cwd packages/web build
 
 # ── Stage 3: Runtime ─────────────────────────────────────────
 FROM node:20-alpine AS runner
@@ -50,11 +55,13 @@ RUN addgroup --system --gid 1001 nodejs && \
 # Copy standalone Next.js output
 # Note: standalone output places server.js relative to the package location
 COPY --from=builder --chown=nextjs:nodejs /app/packages/web/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/packages/web/.next/static ./packages/web/.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/packages/web/public ./packages/web/public
+COPY --from=builder --chown=nextjs:nodejs /app/packages/web/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/packages/web/public ./public
+# Bun-created symlinks inside standalone node_modules resolve to /node_modules/.bun/*
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules /node_modules
 
 USER nextjs
 
 EXPOSE 3000
 
-CMD ["node", "packages/web/server.js"]
+CMD ["node", "server.js"]

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useAuthStore } from "@/lib/stores/auth-store";
-import { api } from "@/lib/api";
 
 export function LoginForm() {
   const [isRegister, setIsRegister] = useState(false);
@@ -14,11 +13,7 @@ export function LoginForm() {
 
   const handleOAuth = async (provider: "google" | "github") => {
     try {
-      const redirectUri = window.location.origin;
-      const data = await api.get<{ authorization_url: string }>(
-        `/api/v1/oauth/${provider}/authorize?redirect_uri=${encodeURIComponent(redirectUri)}`
-      );
-      window.location.href = data.authorization_url;
+      throw new Error(`${provider.toUpperCase()} OAuth is not available in API v2 yet`);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "OAuth login failed";
       setError(message);
