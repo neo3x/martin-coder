@@ -4,7 +4,26 @@
 
 > El proyecto fue completamente reescrito como v2.0 el 2026-02-19.
 > Stack migrado: **Python / FastAPI / PostgreSQL / Redis → TypeScript / Bun / Hono / SQLite**.
-> Todos los fixes del stack Python v1.x están archivados en [`_python_backup/`](./_python_backup/) junto con el código fuente original.
+> Todos los fixes del stack Python v1.x se archivaron en `_python_backup/` (eliminado en v2.0.1 — historial disponible en git).
+
+---
+
+### 2026-02-23
+
+#### 6. Eliminación de carpetas deprecadas `apps/` y `_python_backup/`
+
+**Problema:** Las carpetas `apps/` (API Python, web antiguo, CLI Python) y `_python_backup/` (backup del código Python) seguían presentes en el repositorio pese a que el stack activo es 100% TypeScript/Bun en `packages/`. Generaban confusión y añadían 242 archivos innecesarios al árbol del proyecto.
+
+**Solución:** Eliminación completa de ambas carpetas.
+
+| Carpeta eliminada | Contenido | Reemplazado por |
+|-------------------|-----------|-----------------|
+| `apps/api/` | FastAPI + Alembic + tests Python | `packages/api/` (Hono/Bun) |
+| `apps/web/` | Next.js sin componentes nuevos | `packages/web/` |
+| `apps/cli/` | CLI Python | `packages/cli/` (TypeScript) |
+| `_python_backup/` | Backup completo del stack v1.x | Historial git |
+
+**Archivos eliminados:** 242 (106 de `_python_backup/`, 136 de `apps/`)
 
 ---
 
@@ -82,7 +101,7 @@
 
 ## v1.x — Stack Python (archivado)
 
-Todos los fixes v1.x (54 items) están archivados a continuación en forma resumida. El código al que aplican vive en [`_python_backup/`](./_python_backup/).
+Todos los fixes v1.x (54 items) están archivados a continuación en forma resumida. El código al que aplicaban vivía en `_python_backup/` (eliminado en v2.0.1 — ver historial git).
 
 | Período | Categoría | Cant. | Resumen |
 |---------|-----------|-------|---------|
@@ -93,5 +112,5 @@ Todos los fixes v1.x (54 items) están archivados a continuación en forma resum
 
 ---
 
-_Última actualización: 2026-02-20_
+_Última actualización: 2026-02-23_
 _Proyecto: Martin-Coder v2.0_

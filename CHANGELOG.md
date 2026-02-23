@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.1] - 2026-02-23 — Limpieza de código deprecado
+
+### Removed
+
+- **`apps/api/`** — API Python/FastAPI eliminada. Reemplazada por `packages/api/` (TypeScript/Bun/Hono).
+- **`apps/web/`** — Frontend antiguo sin componentes actualizados. Reemplazado por `packages/web/`.
+- **`apps/cli/`** — CLI Python eliminada. Reemplazada por `packages/cli/` (TypeScript).
+- **`_python_backup/`** — Backup completo del stack Python v1.x eliminado. El historial queda disponible en git.
+- Total: **242 archivos eliminados** (106 de `_python_backup/`, 136 de `apps/`).
+
+---
+
 ## [2.0.0] - 2026-02-19 — Complete TypeScript Rewrite
 
 > **Breaking change**: Full rewrite from Python/FastAPI to TypeScript/Bun.
@@ -104,10 +116,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🗂️ Python Backup
 
-All Python code preserved at `_python_backup/`:
-- `_python_backup/api/` — FastAPI backend
-- `_python_backup/cli/` — Python CLI
-- `_python_backup/docker-compose.yml` — original Docker configuration
+> **Nota:** `_python_backup/` fue eliminado en v2.0.1. Historial disponible en git.
+
+~~All Python code preserved at `_python_backup/`:~~
+~~- `_python_backup/api/` — FastAPI backend~~
+~~- `_python_backup/cli/` — Python CLI~~
+~~- `_python_backup/docker-compose.yml` — original Docker configuration~~
 
 ### Changed
 
