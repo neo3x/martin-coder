@@ -65,13 +65,13 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
 
   const handleNewSession = async () => {
     await createSession({ title: "New session" });
-    if (pathname !== "/") router.push("/");
+    if (pathname !== "/app") router.push("/app");
     onCloseMobile?.();
   };
 
   const handleSelectSession = async (id: string) => {
     await selectSession(id);
-    if (pathname !== "/") router.push("/");
+    if (pathname !== "/app") router.push("/app");
     onCloseMobile?.();
   };
 
@@ -88,7 +88,7 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
         gitUrl:    projectGitUrl.trim() || undefined,
       });
       await selectProject(project);
-      router.push("/");
+      router.push("/app");
       setProjectName(""); setProjectPath(""); setProjectGitUrl("");
       setShowProjectForm(false);
     } catch (err: unknown) {
@@ -127,7 +127,7 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
     s.title.toLowerCase().includes(search.toLowerCase())
   );
 
-  const isHome  = pathname === "/";
+  const isHome  = pathname === "/app";
   const isDrive = pathname === "/drive";
 
   return (
@@ -192,7 +192,7 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
         <div className="flex-shrink-0 px-2 pt-2 space-y-0.5">
           <button
             type="button"
-            onClick={() => { router.push("/"); onCloseMobile?.(); }}
+            onClick={() => { router.push("/app"); onCloseMobile?.(); }}
             className={`sidebar-item w-full text-left ${isHome ? "active" : ""}`}
           >
             <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -258,7 +258,7 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
                       type="button"
                       onClick={async () => {
                         await selectProject(project);
-                        router.push("/");
+                        router.push("/app");
                         onCloseMobile?.();
                       }}
                       className={`w-full text-left px-2 py-1.5 rounded-lg text-xs truncate transition-colors ${

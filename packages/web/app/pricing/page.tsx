@@ -1,0 +1,3 @@
+"use client";
+import { PageShell } from "@/components/marketing/page-shell";
+export default function PricingPage(){const es=typeof document!=="undefined"&&document.cookie.includes("locale=es");return <PageShell><h1 className="text-3xl font-semibold mb-6">{es?"Precios":"Pricing"}</h1><div className="grid lg:grid-cols-3 gap-4">{["Starter","Pro","Enterprise"].map((tier,i)=><div key={tier} className={`card p-6 ${i===1?"border-primary":""}`}><h2 className="font-semibold text-xl">{tier}</h2><p className="text-3xl mt-2 mb-4">{i===0?"$0":i===1?"$29":"Custom"}</p><p className="text-sm text-muted-foreground">{es?"Incluye control de sesiones, seguridad y múltiples proveedores.":"Includes session controls, safety workflows, and multi-provider AI."}</p></div>)}</div></PageShell>}

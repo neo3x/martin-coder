@@ -1,0 +1,4 @@
+"use client";
+import { PageShell } from "@/components/marketing/page-shell";
+const blocks={en:["Safe planning mode","Execution mode with guardrails","Session persistence","Repo-aware tools","Provider settings and model governance","Light/dark + responsive UX"],es:["Modo de planificación segura","Modo de ejecución con controles","Persistencia de sesiones","Herramientas conscientes del repositorio","Configuración de proveedores y modelos","UX responsive con tema claro/oscuro"]};
+export default function FeaturesPage(){const isEs=typeof document!=="undefined"&&document.cookie.includes("locale=es");const items=isEs?blocks.es:blocks.en;return <PageShell><h1 className="text-3xl font-semibold mb-6">{isEs?"Funcionalidades":"Features"}</h1><div className="grid md:grid-cols-2 gap-4">{items.map((item)=><div className="card p-5" key={item}>{item}</div>)}</div></PageShell>}
