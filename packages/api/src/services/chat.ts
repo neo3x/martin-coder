@@ -1,13 +1,14 @@
 import { streamText, type CoreMessage } from 'ai'
 import { getProviderModel, calculateCost, getContextLimit } from '../providers/index.js'
 import { getAgent } from '../agents/index.js'
-import { getToolsForAgent } from '../tools/index.js'
+import { getToolsForAgent, setToolExecutionContext, clearToolExecutionContext } from '../tools/index.js'
 import { getSession, addMessage, shouldAutoCompact, autoCompact } from './session.js'
 import { db } from '../db/index.js'
 import { sessions, messages } from '../db/schema.js'
 import { eq } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import type { Message } from '../db/schema.js'
+import { parseSessionSafetySettings } from './safety.js'
 
 export interface StreamChunk {
   type: 'text' | 'tool_call' | 'tool_result' | 'finish' | 'error'
@@ -47,6 +48,14 @@ export async function streamMessage(
   }
 
   const { provider, model } = sessionData
+  const safetySettings = parseSessionSafetySettings(sessionData.safetySettings)
+  const toolContext = {
+    readOnlyMode: safetySettings.readOnlyMode,
+    requireApprovalForCommands: safetySettings.requireApprovalForCommands,
+    writableRoots: safetySettings.writableRoots,
+    allowCommandPatterns: safetySettings.allowCommandPatterns,
+    denyCommandPatterns: safetySettings.denyCommandPatterns,
+  }
 
   // Check if we need to auto-compact
   const needsCompact = await shouldAutoCompact(sessionId, model)
@@ -104,6 +113,8 @@ export async function streamMessage(
   let completionTokens = 0
 
   try {
+    setToolExecutionContext(toolContext)
+
     const stream = streamText({
       model: llmModel,
       messages: coreMessages,
@@ -175,6 +186,8 @@ export async function streamMessage(
     const errorMessage = String(err)
     onChunk?.({ type: 'error', error: errorMessage })
     throw err
+  } finally {
+    clearToolExecutionContext()
   }
 }
 

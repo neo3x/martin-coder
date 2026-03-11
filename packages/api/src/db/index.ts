@@ -74,6 +74,7 @@ export function runMigrations() {
       total_tokens INTEGER NOT NULL DEFAULT 0,
       total_cost REAL NOT NULL DEFAULT 0,
       context_files TEXT DEFAULT '[]',
+      safety_settings TEXT NOT NULL DEFAULT '{}',
       auto_compacted INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -103,6 +104,14 @@ export function runMigrations() {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `)
+
+
+
+  try {
+    sqlite.exec("ALTER TABLE sessions ADD COLUMN safety_settings TEXT NOT NULL DEFAULT '{}'")
+  } catch {
+    // Column may already exist
+  }
 
   console.log('[DB] Migrations completed successfully')
 }

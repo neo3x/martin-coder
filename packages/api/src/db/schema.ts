@@ -50,6 +50,7 @@ export const sessions = sqliteTable('sessions', {
   totalTokens: integer('total_tokens').notNull().default(0),
   totalCost: real('total_cost').notNull().default(0),
   contextFiles: text('context_files').default('[]'),
+  safetySettings: text('safety_settings').notNull().default('{}'),
   autoCompacted: integer('auto_compacted', { mode: 'boolean' }).notNull().default(false),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
   updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),

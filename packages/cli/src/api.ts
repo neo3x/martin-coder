@@ -39,6 +39,14 @@ export interface CreateProjectData {
 
 export type StreamCallback = (event: StreamEvent) => void
 
+export interface SessionSafetySettings {
+  readOnlyMode: boolean
+  requireApprovalForCommands: boolean
+  writableRoots: string[]
+  allowCommandPatterns: string[]
+  denyCommandPatterns: string[]
+}
+
 // ─── Error class ─────────────────────────────────────────────────────────────
 
 export class ApiRequestError extends Error {
@@ -290,6 +298,24 @@ export async function sendMessage(
       }
     }
   }
+}
+
+
+
+export async function getSessionSafetySettings(id: string): Promise<SessionSafetySettings> {
+  const response = await request<{ safetySettings: SessionSafetySettings }>(`/api/v1/sessions/${id}/safety`)
+  return response.safetySettings
+}
+
+export async function updateSessionSafetySettings(
+  id: string,
+  data: SessionSafetySettings,
+): Promise<SessionSafetySettings> {
+  const response = await request<{ safetySettings: SessionSafetySettings }>(`/api/v1/sessions/${id}/safety`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+  return response.safetySettings
 }
 
 // ─── Projects ─────────────────────────────────────────────────────────────────

@@ -5,10 +5,11 @@ import type { Session, NewSession, Message, NewMessage } from '../db/schema.js'
 import { nanoid } from 'nanoid'
 import { getProviderModel, calculateCost, getContextLimit } from '../providers/index.js'
 import { generateText } from 'ai'
+import { parseSessionSafetySettings, DEFAULT_SESSION_SAFETY_SETTINGS, type SessionSafetySettings } from './safety.js'
 
 export async function createSession(
   userId: string,
-  data: Partial<NewSession>
+  data: Partial<NewSession> & { safetySettings?: SessionSafetySettings }
 ): Promise<Session> {
   const session: NewSession = {
     id: nanoid(),
@@ -19,6 +20,7 @@ export async function createSession(
     model: data.model || 'claude-sonnet-4-5-20250929',
     systemPrompt: data.systemPrompt,
     contextFiles: data.contextFiles || '[]',
+    safetySettings: JSON.stringify(data.safetySettings || DEFAULT_SESSION_SAFETY_SETTINGS),
     messageCount: 0,
     totalTokens: 0,
     totalCost: 0,
@@ -41,7 +43,11 @@ export async function getSession(id: string): Promise<(Session & { messages: Mes
     .orderBy(messages.createdAt)
     .all()
 
-  return { ...session, messages: sessionMessages }
+  return {
+    ...session,
+    safetySettings: JSON.stringify(parseSessionSafetySettings(session.safetySettings)),
+    messages: sessionMessages,
+  }
 }
 
 export async function listSessions(userId: string): Promise<Session[]> {
@@ -115,6 +121,28 @@ export async function getMessages(sessionId: string): Promise<Message[]> {
     .where(eq(messages.sessionId, sessionId))
     .orderBy(messages.createdAt)
     .all()
+}
+
+
+export async function getSessionSafetySettings(sessionId: string): Promise<SessionSafetySettings> {
+  const session = await db.select().from(sessions).where(eq(sessions.id, sessionId)).get()
+  if (!session) throw new Error(`Session not found: ${sessionId}`)
+  return parseSessionSafetySettings(session.safetySettings)
+}
+
+export async function updateSessionSafetySettings(
+  sessionId: string,
+  settings: SessionSafetySettings
+): Promise<SessionSafetySettings> {
+  await db
+    .update(sessions)
+    .set({
+      safetySettings: JSON.stringify(settings),
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(sessions.id, sessionId))
+
+  return settings
 }
 
 export async function autoCompact(
