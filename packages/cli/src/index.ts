@@ -7,6 +7,7 @@ import { registerChatCommands } from './commands/chat.js'
 import { registerSessionsCommands } from './commands/sessions.js'
 import { registerProjectsCommands } from './commands/projects.js'
 import { registerConfigCommands } from './commands/config.js'
+import { registerDoctorCommands } from './commands/doctor.js'
 
 // ─── Resolve package version ──────────────────────────────────────────────────
 
@@ -44,6 +45,7 @@ ${chalk.bold('Examples:')}
   ${chalk.cyan('martin projects create')}     Create a new project
   ${chalk.cyan('martin projects analyze <id>')} Analyze a project
   ${chalk.cyan('martin config')}              Show current configuration
+  ${chalk.cyan('martin doctor')}              Run API and config diagnostics
   ${chalk.cyan('martin config set apiUrl http://localhost:8000')}
   ${chalk.cyan('martin whoami')}              Show the current user
   ${chalk.cyan('martin logout')}              Log out
@@ -60,6 +62,7 @@ registerChatCommands(program)
 registerSessionsCommands(program)
 registerProjectsCommands(program)
 registerConfigCommands(program)
+registerDoctorCommands(program)
 
 // ─── Global error handling ────────────────────────────────────────────────────
 
