@@ -42,6 +42,99 @@ const BLOCKED_BASH_PATTERNS = [
   /wipefs/,                        // wipe filesystem signatures
 ]
 
+
+export interface ToolExecutionContext {
+  readOnlyMode: boolean
+  requireApprovalForCommands: boolean
+  writableRoots: string[]
+  allowCommandPatterns: string[]
+  denyCommandPatterns: string[]
+}
+
+const DEFAULT_TOOL_CONTEXT: ToolExecutionContext = {
+  readOnlyMode: false,
+  requireApprovalForCommands: true,
+  writableRoots: [],
+  allowCommandPatterns: [],
+  denyCommandPatterns: [],
+}
+
+let activeToolContext: ToolExecutionContext = DEFAULT_TOOL_CONTEXT
+
+export function setToolExecutionContext(context: ToolExecutionContext): void {
+  activeToolContext = context
+}
+
+export function clearToolExecutionContext(): void {
+  activeToolContext = DEFAULT_TOOL_CONTEXT
+}
+
+function canWriteToPath(targetPath: string): boolean {
+  if (activeToolContext.writableRoots.length === 0) return true
+  const resolved = resolve(targetPath)
+  return activeToolContext.writableRoots.some((root) => resolved.startsWith(resolve(root)))
+}
+
+function assertWriteAllowed(targetPath: string): void {
+  if (activeToolContext.readOnlyMode) {
+    throw new Error('Session is in read-only mode. File modifications are blocked.')
+  }
+
+  if (!canWriteToPath(targetPath)) {
+    throw new Error(`Write blocked outside allowed roots: ${targetPath}`)
+  }
+}
+
+function assertCommandAllowed(command: string): void {
+  const denyHit = activeToolContext.denyCommandPatterns.find((pattern) =>
+    command.toLowerCase().includes(pattern.toLowerCase())
+  )
+  if (denyHit) {
+    throw new Error(`Command blocked by deny pattern: ${denyHit}`)
+  }
+
+  if (activeToolContext.allowCommandPatterns.length > 0) {
+    const allowed = activeToolContext.allowCommandPatterns.some((pattern) =>
+      command.toLowerCase().includes(pattern.toLowerCase())
+    )
+    if (!allowed) {
+      throw new Error('Command blocked because it does not match allowed command patterns.')
+    }
+  }
+
+  if (activeToolContext.readOnlyMode) {
+    const writeSignals = [
+      ' rm ',
+      'mv ',
+      'cp ',
+      'chmod ',
+      'chown ',
+      'sed -i',
+      'tee ',
+      '>>',
+      '>',
+      'git add',
+      'git commit',
+      'npm install',
+      'bun install',
+      'yarn add',
+      'pnpm add',
+      'touch ',
+      'mkdir ',
+    ]
+    const normalized = ` ${command.toLowerCase()} `
+    if (writeSignals.some((signal) => normalized.includes(signal))) {
+      throw new Error('Session is in read-only mode. Write-like commands are blocked.')
+    }
+  }
+
+  if (activeToolContext.requireApprovalForCommands) {
+    throw new Error(
+      'Command requires approval. Disable requireApprovalForCommands in session safety settings to execute bash commands.'
+    )
+  }
+}
+
 function validatePath(filePath: string, basePath?: string): string {
   const resolved = resolve(filePath)
 
@@ -162,6 +255,7 @@ export const writeFileTool = tool({
   execute: async ({ path, content }) => {
     try {
       const validPath = validatePath(path)
+      assertWriteAllowed(validPath)
       const dir = dirname(validPath)
 
       if (!existsSync(dir)) {
@@ -190,6 +284,7 @@ export const editFileTool = tool({
   execute: async ({ path, oldStr, newStr }) => {
     try {
       const validPath = validatePath(path)
+      assertWriteAllowed(validPath)
 
       if (!existsSync(validPath)) {
         return { error: `File not found: ${path}` }
@@ -307,6 +402,7 @@ export const executeBashTool = tool({
   execute: async ({ command, cwd, timeout = 30000 }) => {
     try {
       validateBashCommand(command)
+      assertCommandAllowed(command)
 
       const workingDir = cwd ? validatePath(cwd) : process.cwd()
 

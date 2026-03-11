@@ -111,6 +111,74 @@ async function deleteSessionCommand(id: string): Promise<void> {
   }
 }
 
+
+async function showSafetyCommand(id: string): Promise<void> {
+  const config = loadConfig()
+  if (!config.accessToken) {
+    console.log(chalk.yellow('Not logged in. Run `martin login` first.'))
+    process.exit(1)
+  }
+
+  const spinner = ora('Loading session safety settings...').start()
+  try {
+    const safety = await api.getSessionSafetySettings(id)
+    spinner.stop()
+    console.log()
+    console.log(chalk.bold(`Session ${id} safety settings`))
+    console.log(chalk.dim(`  Read-only mode: ${safety.readOnlyMode ? 'enabled' : 'disabled'}`))
+    console.log(
+      chalk.dim(
+        `  Command approval required: ${safety.requireApprovalForCommands ? 'yes' : 'no'}`,
+      ),
+    )
+    console.log(chalk.dim(`  Writable roots: ${safety.writableRoots.join(', ') || '(all paths)'}`))
+    console.log(
+      chalk.dim(
+        `  Allowed command patterns: ${safety.allowCommandPatterns.join(', ') || '(none)'}`,
+      ),
+    )
+    console.log(
+      chalk.dim(`  Denied command patterns: ${safety.denyCommandPatterns.join(', ') || '(none)'}`),
+    )
+    console.log()
+  } catch (err: any) {
+    spinner.fail(chalk.red(`Failed to load safety settings: ${err.message}`))
+    process.exit(1)
+  }
+}
+
+async function setReadOnlyCommand(id: string, mode: 'on' | 'off'): Promise<void> {
+  if (mode !== 'on' && mode !== 'off') {
+    console.log(chalk.red('Mode must be either "on" or "off".'))
+    process.exit(1)
+  }
+
+  const config = loadConfig()
+  if (!config.accessToken) {
+    console.log(chalk.yellow('Not logged in. Run `martin login` first.'))
+    process.exit(1)
+  }
+
+  const spinner = ora('Updating session safety settings...').start()
+
+  try {
+    const current = await api.getSessionSafetySettings(id)
+    const updated = await api.updateSessionSafetySettings(id, {
+      ...current,
+      readOnlyMode: mode === 'on',
+    })
+
+    spinner.succeed(
+      chalk.green(
+        `Read-only mode ${updated.readOnlyMode ? 'enabled' : 'disabled'} for session ${id}`,
+      ),
+    )
+  } catch (err: any) {
+    spinner.fail(chalk.red(`Failed to update safety settings: ${err.message}`))
+    process.exit(1)
+  }
+}
+
 // ─── Command registration ─────────────────────────────────────────────────────
 
 export function registerSessionsCommands(program: Command): void {
@@ -123,4 +191,14 @@ export function registerSessionsCommands(program: Command): void {
     .command('delete <id>')
     .description('Delete a session by ID')
     .action(deleteSessionCommand)
+
+  sessions
+    .command('safety <id>')
+    .description('Show safety settings for a session')
+    .action(showSafetyCommand)
+
+  sessions
+    .command('readonly <id> <mode>')
+    .description('Enable or disable read-only mode for a session (on|off)')
+    .action((id: string, mode: 'on' | 'off') => setReadOnlyCommand(id, mode))
 }

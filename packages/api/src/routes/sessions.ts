@@ -10,10 +10,13 @@ import {
   deleteSession,
   getMessages,
   addMessage,
+  getSessionSafetySettings,
+  updateSessionSafetySettings,
 } from '../services/session.js'
 import { streamMessage } from '../services/chat.js'
 import type { User } from '../db/schema.js'
 import { streamSSE } from 'hono/streaming'
+import { DEFAULT_SESSION_SAFETY_SETTINGS } from '../services/safety.js'
 
 type Variables = {
   user: User
@@ -22,6 +25,20 @@ type Variables = {
 const sessionsRoutes = new Hono<{ Variables: Variables }>()
 sessionsRoutes.use('*', authMiddleware)
 
+const sessionSafetySettingsSchema = z.object({
+  readOnlyMode: z.boolean().default(DEFAULT_SESSION_SAFETY_SETTINGS.readOnlyMode),
+  requireApprovalForCommands: z
+    .boolean()
+    .default(DEFAULT_SESSION_SAFETY_SETTINGS.requireApprovalForCommands),
+  writableRoots: z.array(z.string()).default(DEFAULT_SESSION_SAFETY_SETTINGS.writableRoots),
+  allowCommandPatterns: z
+    .array(z.string())
+    .default(DEFAULT_SESSION_SAFETY_SETTINGS.allowCommandPatterns),
+  denyCommandPatterns: z
+    .array(z.string())
+    .default(DEFAULT_SESSION_SAFETY_SETTINGS.denyCommandPatterns),
+})
+
 const createSessionSchema = z.object({
   title: z.string().optional(),
   projectId: z.string().optional(),
@@ -29,6 +46,7 @@ const createSessionSchema = z.object({
   model: z.string().optional(),
   systemPrompt: z.string().optional(),
   contextFiles: z.array(z.string()).optional(),
+  safetySettings: sessionSafetySettingsSchema.optional(),
 })
 
 const updateSessionSchema = z.object({
@@ -62,6 +80,7 @@ sessionsRoutes.post('/', zValidator('json', createSessionSchema), async (c) => {
       provider: data.provider || user.defaultProvider,
       model: data.model || user.defaultModel,
       contextFiles: data.contextFiles ? JSON.stringify(data.contextFiles) : '[]',
+      safetySettings: data.safetySettings || DEFAULT_SESSION_SAFETY_SETTINGS,
     })
 
     return c.json({ session }, 201)
@@ -228,6 +247,53 @@ sessionsRoutes.get('/:id/messages', async (c) => {
     return c.json({ messages: msgs })
   } catch (err) {
     return c.json({ error: 'Failed to list messages', details: String(err) }, 500)
+  }
+})
+
+
+
+sessionsRoutes.get('/:id/safety', async (c) => {
+  const user = c.get('user')
+  const { id } = c.req.param()
+
+  try {
+    const session = await getSession(id)
+
+    if (!session) {
+      return c.json({ error: 'Session not found' }, 404)
+    }
+
+    if (session.userId !== user.id && !user.isSuperuser) {
+      return c.json({ error: 'Access denied' }, 403)
+    }
+
+    const safetySettings = await getSessionSafetySettings(id)
+    return c.json({ safetySettings })
+  } catch (err) {
+    return c.json({ error: 'Failed to get session safety settings', details: String(err) }, 500)
+  }
+})
+
+sessionsRoutes.put('/:id/safety', zValidator('json', sessionSafetySettingsSchema), async (c) => {
+  const user = c.get('user')
+  const { id } = c.req.param()
+  const data = c.req.valid('json')
+
+  try {
+    const session = await getSession(id)
+
+    if (!session) {
+      return c.json({ error: 'Session not found' }, 404)
+    }
+
+    if (session.userId !== user.id && !user.isSuperuser) {
+      return c.json({ error: 'Access denied' }, 403)
+    }
+
+    const safetySettings = await updateSessionSafetySettings(id, data)
+    return c.json({ safetySettings })
+  } catch (err) {
+    return c.json({ error: 'Failed to update session safety settings', details: String(err) }, 500)
   }
 })
 
