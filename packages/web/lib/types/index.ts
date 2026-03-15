@@ -14,12 +14,26 @@ export interface AuthTokens {
   token_type?: string;
 }
 
+export interface ToolCallRecord {
+  id: string;
+  name: string;
+  arguments: Record<string, unknown>;
+  result?: unknown;
+  error?: string;
+}
+
 export interface ChatMessage {
   id: string;
   chat_id: string;
   role: "user" | "assistant" | "system" | "tool";
   content: string;
   created_at: string;
+  // Extended fields populated from API
+  createdAt?: string;
+  promptTokens?: number;
+  completionTokens?: number;
+  costUsd?: number;
+  toolCalls?: ToolCallRecord[];
 }
 
 export interface Chat {
