@@ -107,6 +107,56 @@ export function runMigrations() {
 
 
 
+  // New tables for Phase 2: trust, traceability, validation
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS executions (
+      id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL REFERENCES sessions(id),
+      user_id TEXT NOT NULL REFERENCES users(id),
+      prompt TEXT NOT NULL,
+      phase TEXT NOT NULL DEFAULT 'understanding',
+      agent_name TEXT NOT NULL DEFAULT 'build',
+      files_changed INTEGER NOT NULL DEFAULT 0,
+      validation_passed INTEGER,
+      validation_summary TEXT,
+      error_message TEXT,
+      started_at TEXT NOT NULL DEFAULT (datetime('now')),
+      completed_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS file_snapshots (
+      id TEXT PRIMARY KEY,
+      execution_id TEXT NOT NULL REFERENCES executions(id),
+      session_id TEXT NOT NULL REFERENCES sessions(id),
+      file_path TEXT NOT NULL,
+      change_type TEXT NOT NULL DEFAULT 'modified',
+      content_before TEXT,
+      content_after TEXT,
+      diff_text TEXT,
+      lines_added INTEGER NOT NULL DEFAULT 0,
+      lines_removed INTEGER NOT NULL DEFAULT 0,
+      is_restored INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS validation_results (
+      id TEXT PRIMARY KEY,
+      execution_id TEXT NOT NULL REFERENCES executions(id),
+      session_id TEXT NOT NULL REFERENCES sessions(id),
+      tool_type TEXT NOT NULL,
+      tool_command TEXT NOT NULL,
+      passed INTEGER NOT NULL DEFAULT 0,
+      exit_code INTEGER NOT NULL DEFAULT 0,
+      stdout TEXT,
+      stderr TEXT,
+      error_count INTEGER NOT NULL DEFAULT 0,
+      warning_count INTEGER NOT NULL DEFAULT 0,
+      duration_ms INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `)
+
   try {
     sqlite.exec("ALTER TABLE sessions ADD COLUMN safety_settings TEXT NOT NULL DEFAULT '{}'")
   } catch {

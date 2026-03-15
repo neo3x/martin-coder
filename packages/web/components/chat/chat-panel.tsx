@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import { useChatStore } from "@/lib/stores/chat-store";
 import { useProjectStore } from "@/lib/stores/project-store";
+import { useExecutionStore } from "@/lib/stores/execution-store";
 import { ToolCallGroup, type ToolCallItem } from "@/components/chat/tool-call-view";
 import { SmartPrompts } from "@/components/chat/smart-prompts";
 import {
@@ -11,6 +12,9 @@ import {
   InterpretingPlaceholder,
   type InterpretationResult,
 } from "@/components/chat/interpretation-panel";
+import { ExecutionTimeline } from "@/components/execution/execution-timeline";
+import { LiveDiffPanel } from "@/components/diff/live-diff-panel";
+import { HistoryPanel } from "@/components/execution/history-panel";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -306,6 +310,14 @@ export function ChatPanel() {
 
   const { fileTree, selectedProject } = useProjectStore();
 
+  const {
+    liveExecution,
+    showHistory,
+    showDiffPanel,
+    setShowHistory,
+    setShowDiffPanel,
+  } = useExecutionStore();
+
   const [input, setInput] = useState("");
   const [phase, setPhase] = useState<InterpretPhase>({ type: "idle" });
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -396,8 +408,14 @@ export function ChatPanel() {
 
   const isInputDisabled = isStreaming || phase.type === "interpreting" || phase.type === "executing";
 
+  const hasLiveDiffData = (liveExecution?.fileChanges.length ?? 0) > 0 ||
+    (liveExecution?.validationResults.length ?? 0) > 0;
+
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex h-full overflow-hidden">
+      {/* ── Main chat column ──────────────────────────────────────────── */}
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+
       {/* ── Conversation area ─────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto">
         {isEmpty ? (
@@ -487,26 +505,86 @@ export function ChatPanel() {
         )}
       </div>
 
+      {/* ── Execution timeline (live) ──────────────────────────────────── */}
+      {liveExecution && (
+        <div className="flex-shrink-0 px-4 pb-2">
+          <ExecutionTimeline
+            phase={liveExecution.phase}
+            statusMessage={liveExecution.statusMessage}
+            filesChanged={liveExecution.fileChanges.length}
+          />
+        </div>
+      )}
+
       {/* ── Input area ────────────────────────────────────────────────── */}
       <div className="flex-shrink-0 border-t border-border/50 bg-background/80 backdrop-blur-xl">
         <div className="max-w-4xl mx-auto w-full px-3 py-3 space-y-2">
           {/* Top row */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <AgentToggle />
-            <span className="hidden sm:flex items-center gap-3 text-[10px] text-muted-foreground/40">
-              <span>
-                <kbd className="font-mono bg-secondary/60 px-1 rounded">Enter</kbd> send
-              </span>
-              <span>
-                <kbd className="font-mono bg-secondary/60 px-1 rounded">Shift+Enter</kbd> newline
-              </span>
-              {phase.type === "waiting_approval" && (
-                <span className="text-primary/70 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                  Waiting for approval
-                </span>
+            <div className="flex items-center gap-2">
+              {/* History button */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowHistory(!showHistory);
+                  if (showDiffPanel) setShowDiffPanel(false);
+                }}
+                className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] border transition-colors ${
+                  showHistory
+                    ? "bg-primary/10 border-primary/25 text-primary"
+                    : "bg-secondary/30 border-border/30 text-muted-foreground/60 hover:text-foreground"
+                }`}
+                title="Execution history"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="hidden sm:inline">History</span>
+              </button>
+
+              {/* Changes/diff button — only visible when there are changes */}
+              {hasLiveDiffData && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDiffPanel(!showDiffPanel);
+                    if (showHistory) setShowHistory(false);
+                  }}
+                  className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] border transition-colors ${
+                    showDiffPanel
+                      ? "bg-primary/10 border-primary/25 text-primary"
+                      : "bg-secondary/30 border-border/30 text-muted-foreground/60 hover:text-foreground"
+                  }`}
+                  title="View file changes"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  <span className="hidden sm:inline">Changes</span>
+                  {liveExecution && liveExecution.fileChanges.length > 0 && (
+                    <span className="text-[9px] px-1 rounded-full bg-primary/20 text-primary font-medium">
+                      {liveExecution.fileChanges.length}
+                    </span>
+                  )}
+                </button>
               )}
-            </span>
+
+              <span className="hidden sm:flex items-center gap-3 text-[10px] text-muted-foreground/40">
+                <span>
+                  <kbd className="font-mono bg-secondary/60 px-1 rounded">Enter</kbd> send
+                </span>
+                <span>
+                  <kbd className="font-mono bg-secondary/60 px-1 rounded">Shift+Enter</kbd> newline
+                </span>
+                {phase.type === "waiting_approval" && (
+                  <span className="text-primary/70 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                    Waiting for approval
+                  </span>
+                )}
+              </span>
+            </div>
           </div>
 
           {/* Input box */}
@@ -572,6 +650,20 @@ export function ChatPanel() {
           </div>
         </div>
       </div>
+
+      </div>{/* end main chat column */}
+
+      {/* ── Right side panels ─────────────────────────────────────────── */}
+      {showDiffPanel && hasLiveDiffData && (
+        <LiveDiffPanel onClose={() => setShowDiffPanel(false)} />
+      )}
+
+      {showHistory && (
+        <HistoryPanel
+          sessionId={currentSession?.id ?? null}
+          onClose={() => setShowHistory(false)}
+        />
+      )}
     </div>
   );
 }

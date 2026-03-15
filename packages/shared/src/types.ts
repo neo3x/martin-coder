@@ -193,6 +193,94 @@ export interface ApiError {
   correlationId?: string
 }
 
+// ─── Execution tracking types ─────────────────────────────────────────────────
+
+export type ExecutionPhase =
+  | 'understanding'
+  | 'scanning'
+  | 'reading'
+  | 'building'
+  | 'waiting_approval'
+  | 'generating'
+  | 'applying'
+  | 'validating'
+  | 'completed'
+  | 'failed'
+  | 'rolled_back'
+
+export interface Execution {
+  id: string
+  sessionId: string
+  userId: string
+  prompt: string
+  phase: ExecutionPhase
+  agentName: string
+  filesChanged: number
+  validationPassed?: boolean
+  validationSummary?: string
+  errorMessage?: string
+  startedAt: string
+  completedAt?: string
+  createdAt: string
+}
+
+export interface ExecutionDetail extends Execution {
+  snapshots: FileSnapshot[]
+  validationResults: ValidationResult[]
+}
+
+// ─── File snapshot / diff types ───────────────────────────────────────────────
+
+export interface FileSnapshot {
+  id: string
+  executionId: string
+  sessionId: string
+  filePath: string
+  changeType: 'created' | 'modified' | 'deleted'
+  contentBefore?: string
+  contentAfter?: string
+  diffText?: string
+  linesAdded: number
+  linesRemoved: number
+  isRestored: boolean
+  createdAt: string
+}
+
+export interface FileDiffSummary {
+  snapshotId: string
+  filePath: string
+  changeType: 'created' | 'modified' | 'deleted'
+  linesAdded: number
+  linesRemoved: number
+  diffText: string
+}
+
+// ─── Validation types ─────────────────────────────────────────────────────────
+
+export interface ValidationResult {
+  id: string
+  executionId: string
+  sessionId: string
+  toolType: 'lint' | 'typecheck' | 'test' | 'build'
+  toolCommand: string
+  passed: boolean
+  exitCode: number
+  stdout: string
+  stderr: string
+  errorCount: number
+  warningCount: number
+  durationMs: number
+  createdAt: string
+}
+
+export interface ValidationReport {
+  allPassed: boolean
+  totalErrors: number
+  totalWarnings: number
+  toolsRun: number
+  summary: string
+}
+
 // ─── Streaming types ──────────────────────────────────────────────────────────
 
 export type StreamEvent =
@@ -205,3 +293,6 @@ export type StreamEvent =
       cost: number
     }
   | { type: 'error'; error: string }
+  | { type: 'task_status'; phase: ExecutionPhase; statusMessage: string; executionId: string }
+  | { type: 'file_changed'; fileChange: FileDiffSummary }
+  | { type: 'validation_result'; validation?: Omit<ValidationResult, 'id' | 'executionId' | 'sessionId' | 'createdAt'>; validationSummary?: ValidationReport }
