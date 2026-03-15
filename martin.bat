@@ -288,7 +288,7 @@ if "!API_STATUS!"=="200" (
 )
 
 set "WEB_STATUS="
-for /f %%s in ('powershell -NoProfile -Command "try { (Invoke-WebRequest -Uri ''http://localhost:3000'' -UseBasicParsing -TimeoutSec 3).StatusCode } catch { if ($_.Exception.Response) { [int]$_.Exception.Response.StatusCode } else { 0 } }"') do set "WEB_STATUS=%%s"
+for /f %%s in ('powershell -NoProfile -Command "try { (Invoke-WebRequest -Uri ''http://localhost:3005'' -UseBasicParsing -TimeoutSec 3).StatusCode } catch { if ($_.Exception.Response) { [int]$_.Exception.Response.StatusCode } else { 0 } }"') do set "WEB_STATUS=%%s"
 
 if not "!WEB_STATUS!"=="0" (
     call :print_success "Web health check passed"
@@ -392,7 +392,7 @@ echo   martin.bat test
 echo.
 echo %CYAN%Stack:%NC%  Bun + Hono ^(API^) / Next.js ^(Web^) / SQLite ^(DB^)
 echo.
-echo Web UI:      %BLUE%http://localhost:3000%NC%
+echo Web UI:      %BLUE%http://localhost:3005%NC%
 echo API:         %BLUE%http://localhost:8000%NC%
 echo API Health:  %BLUE%http://localhost:8000/health%NC%
 echo OpenAPI:     %BLUE%http://localhost:8000/openapi.json%NC%
@@ -404,7 +404,7 @@ echo %CYAN%Stack:%NC%
 echo   Runtime:     %GREEN%Bun%NC%
 echo   Language:    %GREEN%TypeScript 5.7%NC%
 echo   API:         %GREEN%Hono 4.6 (port 8000)%NC%
-echo   Frontend:    %GREEN%Next.js 14 + React 18 (port 3000)%NC%
+echo   Frontend:    %GREEN%Next.js 14 + React 18 (port 3005)%NC%
 echo   Database:    %GREEN%SQLite + Drizzle ORM%NC%
 echo   AI SDKs:     %GREEN%Vercel AI SDK (Anthropic, OpenAI, Google, Ollama)%NC%
 echo   Build:       %GREEN%Turbo 2.5%NC%
@@ -425,7 +425,7 @@ echo   - Internationalization (English, Spanish)
 echo   - Plugin system
 echo.
 echo %CYAN%URLs:%NC%
-echo   Web UI:      %BLUE%http://localhost:3000%NC%
+echo   Web UI:      %BLUE%http://localhost:3005%NC%
 echo   API:         %BLUE%http://localhost:8000%NC%
 echo   API Health:  %BLUE%http://localhost:8000/health%NC%
 echo   OpenAPI:     %BLUE%http://localhost:8000/openapi.json%NC%
@@ -447,7 +447,7 @@ call :wait_health
 
 echo.
 call :print_success "Martin-Coder is up"
-echo   Web UI:      %BLUE%http://localhost:3000%NC%
+echo   Web UI:      %BLUE%http://localhost:3005%NC%
 echo   API:         %BLUE%http://localhost:8000%NC%
 echo   API Health:  %BLUE%http://localhost:8000/health%NC%
 echo   OpenAPI:     %BLUE%http://localhost:8000/openapi.json%NC%
@@ -639,7 +639,7 @@ if /i "%~2"=="cli" (
 )
 
 call :print_info "Starting all services in dev mode (turbo)..."
-call :print_info "API: http://localhost:8000  |  Web: http://localhost:3000"
+call :print_info "API: http://localhost:8000  |  Web: http://localhost:3005"
 bun run dev
 goto :eof
 

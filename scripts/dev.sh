@@ -24,7 +24,7 @@ case "$1" in
         docker-compose -f docker-compose.dev.yml up -d
         echo -e "${GREEN}Services started!${NC}"
         echo ""
-        echo "Web UI: http://localhost:3000"
+        echo "Web UI: http://localhost:3005"
         echo "API: http://localhost:8000"
         echo "API Docs: http://localhost:8000/docs"
         ;;

@@ -137,7 +137,7 @@ bun run dev
 
 # Or start individually
 bun run dev:api    # API on http://localhost:8000
-bun run dev:web    # Web on http://localhost:3000
+bun run dev:web    # Web on http://localhost:3005
 bun run dev:cli    # CLI in watch mode
 ```
 
@@ -166,7 +166,7 @@ martin.bat            # Windows
 
 | Service | URL |
 |---------|-----|
-| Web UI | http://localhost:3000 |
+| Web UI | http://localhost:3005 |
 | API | http://localhost:8000 |
 | API Health | http://localhost:8000/health |
 | OpenAPI Spec | http://localhost:8000/openapi.json |
@@ -206,8 +206,8 @@ ANTHROPIC_API_KEY=sk-ant-...
 # Server settings
 PORT=8000
 NODE_ENV=production
-FRONTEND_URL=http://your-domain:3000
-CORS_ORIGINS=http://your-domain:3000
+FRONTEND_URL=http://your-domain:3005
+CORS_ORIGINS=http://your-domain:3005
 
 # Database (SQLite - stored in Docker volume)
 DATABASE_PATH=/data/martin-coder.db
@@ -240,7 +240,7 @@ curl http://localhost:8000/health
 curl -s http://localhost:8000/health | jq .
 
 # Check web UI
-curl -s -o /dev/null -w "%{http_code}" http://localhost:3000
+curl -s -o /dev/null -w "%{http_code}" http://localhost:3005
 
 # View logs
 docker compose logs -f
@@ -269,7 +269,7 @@ server {
 
     # Web UI
     location / {
-        proxy_pass http://localhost:3000;
+        proxy_pass http://localhost:3005;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -326,8 +326,8 @@ docker compose -f docker-compose.dev.yml up -d
 | `PORT` | No | `8000` | API server port |
 | `NODE_ENV` | No | `development` | Environment mode |
 | `DATABASE_PATH` | No | `./data/martin-coder.db` | SQLite database path |
-| `FRONTEND_URL` | No | `http://localhost:3000` | Frontend URL for CORS |
-| `CORS_ORIGINS` | No | `http://localhost:3000` | Allowed CORS origins |
+| `FRONTEND_URL` | No | `http://localhost:3005` | Frontend URL for CORS |
+| `CORS_ORIGINS` | No | `http://localhost:3005` | Allowed CORS origins |
 | `ANTHROPIC_API_KEY` | No* | - | Anthropic Claude API key |
 | `OPENAI_API_KEY` | No* | - | OpenAI API key |
 | `GOOGLE_GENERATIVE_AI_API_KEY` | No* | - | Google Gemini API key |
@@ -666,8 +666,8 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 # Configuración del servidor
 NODE_ENV=production
-FRONTEND_URL=http://tu-dominio:3000
-CORS_ORIGINS=http://tu-dominio:3000
+FRONTEND_URL=http://tu-dominio:3005
+CORS_ORIGINS=http://tu-dominio:3005
 
 # Usuario admin inicial
 FIRST_ADMIN_EMAIL=admin@tu-dominio.com

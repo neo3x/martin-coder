@@ -87,7 +87,7 @@ if ! kill -0 $FRONTEND_PID 2>/dev/null; then
     exit 1
 fi
 
-echo -e "${GREEN}✓ Frontend running at http://localhost:3000${NC}"
+echo -e "${GREEN}✓ Frontend running at http://localhost:3005${NC}"
 
 # Print access info
 echo ""
@@ -95,7 +95,7 @@ echo -e "${GREEN}╔════════════════════
 echo -e "${GREEN}║                                                              ║${NC}"
 echo -e "${GREEN}║                    ✅ DEMO READY! ✅                         ║${NC}"
 echo -e "${GREEN}║                                                              ║${NC}"
-echo -e "${GREEN}║  Web Interface:  http://localhost:3000                       ║${NC}"
+echo -e "${GREEN}║  Web Interface:  http://localhost:3005                       ║${NC}"
 echo -e "${GREEN}║  API Docs:       http://localhost:8000/docs                  ║${NC}"
 echo -e "${GREEN}║                                                              ║${NC}"
 echo -e "${GREEN}║  Demo Login:                                                 ║${NC}"

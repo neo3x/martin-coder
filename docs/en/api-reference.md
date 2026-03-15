@@ -484,7 +484,7 @@ GET /drive/status
 ### Authorize
 
 ```http
-GET /drive/authorize?redirect_uri=http://localhost:3000/drive
+GET /drive/authorize?redirect_uri=http://localhost:3005/drive
 ```
 
 **Response:** `200 OK`
@@ -562,7 +562,7 @@ POST /drive/sync/download
 ### GitHub Login
 
 ```http
-GET /oauth/github/login?redirect_uri=http://localhost:3000
+GET /oauth/github/login?redirect_uri=http://localhost:3005
 ```
 
 **Response:** `302 Redirect` to GitHub
@@ -578,7 +578,7 @@ GET /oauth/github/callback?code=xxx&state=xxx
 ### Google Login
 
 ```http
-GET /oauth/google/login?redirect_uri=http://localhost:3000
+GET /oauth/google/login?redirect_uri=http://localhost:3005
 ```
 
 ---

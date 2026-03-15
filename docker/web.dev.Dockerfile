@@ -21,7 +21,7 @@ RUN bun install
 # Copy shared package source (web depends on it)
 COPY packages/shared ./packages/shared
 
-EXPOSE 3000
+EXPOSE 3005
 
 # Dev mode with hot reload (runs next dev via Node.js)
 CMD ["npx", "--prefix", "packages/web", "next", "dev"]

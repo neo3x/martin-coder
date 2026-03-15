@@ -81,14 +81,14 @@ start "Martin-Coder Frontend" cmd /k "npm run dev"
 echo %YELLOW%Waiting for frontend to start...%NC%
 timeout /t 5 /nobreak >nul
 
-echo %GREEN%Frontend started at http://localhost:3000%NC%
+echo %GREEN%Frontend started at http://localhost:3005%NC%
 
 echo.
 echo %GREEN%========================================================================%NC%
 echo %GREEN%                                                                        %NC%
 echo %GREEN%                       DEMO READY!                                      %NC%
 echo %GREEN%                                                                        %NC%
-echo %GREEN%  Web Interface:  http://localhost:3000                                 %NC%
+echo %GREEN%  Web Interface:  http://localhost:3005                                 %NC%
 echo %GREEN%  API Docs:       http://localhost:8000/docs                            %NC%
 echo %GREEN%                                                                        %NC%
 echo %GREEN%  Demo Login:                                                           %NC%
@@ -101,7 +101,7 @@ echo %GREEN%====================================================================
 echo.
 
 REM Open browser
-start http://localhost:3000
+start http://localhost:3005
 
 echo Press any key to open API documentation...
 pause >nul

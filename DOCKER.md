@@ -45,7 +45,7 @@ Martin-Coder v2.0 ejecuta solo **2 servicios Docker**:
 | Servicio | Puerto | Imagen | Descripción |
 |----------|--------|--------|-------------|
 | **api** | 8000 | `martin-coder-api:2.0` | Hono REST API (Bun) |
-| **web** | 3000 | `martin-coder-web:2.0` | Next.js 14 frontend |
+| **web** | 3005 | `martin-coder-web:2.0` | Next.js 14 frontend |
 
 > La base de datos SQLite se persiste en el volumen Docker `db_data` (montado en `/data/martin-coder.db` dentro del contenedor `api`).
 
@@ -171,7 +171,7 @@ docker compose exec web sh
 
 ```bash
 # Verificar qué usa el puerto
-lsof -i :3000   # web
+lsof -i :3005   # web
 lsof -i :8000   # api
 
 # Matar el proceso
@@ -280,8 +280,8 @@ ANTHROPIC_API_KEY=sk-ant-...
 PORT=8000                         # Puerto del API (default: 8000)
 NODE_ENV=production               # Entorno
 DATABASE_PATH=/data/martin-coder.db  # Ruta de la base de datos SQLite
-FRONTEND_URL=http://localhost:3000   # URL del frontend (para CORS)
-CORS_ORIGINS=http://localhost:3000   # Orígenes CORS permitidos
+FRONTEND_URL=http://localhost:3005   # URL del frontend (para CORS)
+CORS_ORIGINS=http://localhost:3005   # Orígenes CORS permitidos
 OLLAMA_BASE_URL=http://localhost:11434  # URL de Ollama (modelos locales)
 LMSTUDIO_BASE_URL=http://localhost:1234/v1  # URL de LM Studio
 DEFAULT_AI_PROVIDER=anthropic     # Proveedor IA por defecto
@@ -372,7 +372,7 @@ bun run dev
 
 # O por servicio
 ./martin.sh dev api    # API en http://localhost:8000
-./martin.sh dev web    # Web en http://localhost:3000
+./martin.sh dev web    # Web en http://localhost:3005
 ```
 
 ---
@@ -383,7 +383,7 @@ Los servicios corren en la red `martin-network`:
 
 - `web` → `api`: `http://api:8000` (interno)
 - Host → `api`: `http://localhost:8000`
-- Host → `web`: `http://localhost:3000`
+- Host → `web`: `http://localhost:3005`
 
 ### Proxy inverso (Nginx) — Producción
 
@@ -394,7 +394,7 @@ server {
 
     # Frontend
     location / {
-        proxy_pass http://localhost:3000;
+        proxy_pass http://localhost:3005;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -441,7 +441,7 @@ rm .env
 
 | Servicio | URL |
 |---------|-----|
-| Web UI | http://localhost:3000 |
+| Web UI | http://localhost:3005 |
 | API | http://localhost:8000 |
 | API Health | http://localhost:8000/health |
 | OpenAPI Spec | http://localhost:8000/openapi.json |

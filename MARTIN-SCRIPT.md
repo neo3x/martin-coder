@@ -191,7 +191,7 @@ Inicia el modo desarrollo local con Bun (sin Docker).
 ```bash
 ./martin.sh dev            # API + Web en paralelo (turbo dev)
 ./martin.sh dev api        # Solo el API en http://localhost:8000
-./martin.sh dev web        # Solo el frontend en http://localhost:3000
+./martin.sh dev web        # Solo el frontend en http://localhost:3005
 ./martin.sh dev cli        # CLI en modo watch
 ```
 
@@ -417,7 +417,7 @@ martin.sh / martin.bat
 
 | Servicio | URL |
 |---------|-----|
-| Web UI | http://localhost:3000 |
+| Web UI | http://localhost:3005 |
 | API | http://localhost:8000 |
 | API Health | http://localhost:8000/health |
 | OpenAPI Spec | http://localhost:8000/openapi.json |

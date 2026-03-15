@@ -92,7 +92,7 @@ docker-compose -f docker-compose.dev.yml up
 
 #### Paso 4: Acceder a la Aplicación
 
-- **Interfaz Web**: http://localhost:3000
+- **Interfaz Web**: http://localhost:3005
 - **API**: http://localhost:8000
 - **Documentación API**: http://localhost:8000/docs
 
