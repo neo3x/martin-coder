@@ -1,7 +1,9 @@
 import { create } from "zustand";
 import { api } from "@/lib/api";
 import { useModelStore } from "@/lib/stores/model-store";
+import { useExecutionStore } from "@/lib/stores/execution-store";
 import type { Chat, ChatMessage } from "@/lib/types";
+import type { ExecutionPhase, FileDiffSummary, ValidationReport } from "@martin-coder/shared";
 
 // Re-export Session as an alias for Chat
 export type Session = Chat;
@@ -21,6 +23,24 @@ interface StreamChunk {
   tool_error?: string;
   usage?: UsageInfo;
   cost?: number;
+  // Task flow / execution
+  phase?: ExecutionPhase;
+  statusMessage?: string;
+  executionId?: string;
+  // File change
+  fileChange?: FileDiffSummary;
+  // Validation
+  validation?: {
+    toolType: string;
+    toolCommand: string;
+    passed: boolean;
+    errorCount: number;
+    warningCount: number;
+    stdout: string;
+    stderr: string;
+    durationMs: number;
+  };
+  validationSummary?: ValidationReport;
 }
 
 interface UsageInfo {
@@ -224,6 +244,26 @@ export const useChatStore = create<ChatStore>((set, get) => ({
               }));
             } else if (chunk.type === "usage" && chunk.usage) {
               set({ lastUsage: chunk.usage, lastCost: chunk.cost ?? 0 });
+
+            // ── Phase 2: Execution tracking events ──────────────────────
+            } else if (chunk.type === "task_status" && chunk.phase) {
+              const execStore = useExecutionStore.getState();
+              if (chunk.executionId && !execStore.liveExecution) {
+                execStore.startLiveExecution(chunk.executionId);
+              }
+              execStore.updatePhase(chunk.phase, chunk.statusMessage ?? "");
+
+            } else if (chunk.type === "file_changed" && chunk.fileChange) {
+              useExecutionStore.getState().addFileChange(chunk.fileChange);
+
+            } else if (chunk.type === "validation_result") {
+              const execStore = useExecutionStore.getState();
+              if (chunk.validation) {
+                execStore.addValidationResult(chunk.validation);
+              }
+              if (chunk.validationSummary) {
+                execStore.setValidationSummary(chunk.validationSummary);
+              }
             }
           },
           onDone: async () => {
@@ -246,6 +286,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             } else {
               set({ isStreaming: false, streamingContent: "", streamingToolCalls: [] });
             }
+
+            // Clear live execution state (keep data visible in diff panel until next run)
+            useExecutionStore.getState().clearLiveExecution();
 
             await get().selectSession(state.currentSession!.id);
             await get().fetchSessions();

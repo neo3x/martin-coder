@@ -14,6 +14,8 @@ import { lspRoutes } from './routes/lsp.js'
 import { mcpRoutes } from './routes/mcp.js'
 import { pluginsRoutes } from './routes/plugins.js'
 import { usersRoutes } from './routes/users.js'
+import { executionsRoutes } from './routes/executions.js'
+import { validationRoutes } from './routes/validation.js'
 
 // Run database migrations on startup
 runMigrations()
@@ -179,6 +181,8 @@ api.route('/lsp', lspRoutes)
 api.route('/mcp', mcpRoutes)
 api.route('/plugins', pluginsRoutes)
 api.route('/users', usersRoutes)
+api.route('/executions', executionsRoutes)
+api.route('/validation', validationRoutes)
 
 app.route('/api/v1', api)
 
