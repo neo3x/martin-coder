@@ -7,6 +7,163 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.3.0] - 2026-03-15 — Phase 2: Trust, Traceability & Validation Hardening
+
+> **PR #26** — Production-grade functional hardening pass. No cosmetic changes — pure depth, safety, and engineering-grade behavior.
+
+### ✅ TRUST — Diff / Review / Rollback / Snapshots
+
+#### File Snapshot System
+- Every `writeFile` and `editFile` tool call now captures before/after file content automatically
+- Snapshots stored in new `file_snapshots` DB table with full diff text, lines added/removed, change type
+- Change types tracked: `created`, `modified`, `deleted`
+
+#### Unified Diff Engine (`services/diff.ts`)
+- Pure TypeScript LCS-based diff algorithm — no external dependencies
+- Produces structured `DiffHunk[]` with 3-line context windows
+- Outputs unified diff text compatible with standard diff format
+- File-level diff summaries: lines added, lines removed, hunk count
+
+#### Execution Lifecycle & Rollback (`services/execution.ts`)
+- Every user request creates a tracked `Execution` record with unique ID
+- Full lifecycle: `understanding → scanning → reading → generating → applying → validating → completed/failed/rolled_back`
+- `rollbackExecution()` restores all files to their pre-execution state atomically
+- Rollback correctly handles: delete newly created files, restore modified files, recreate deleted files
+
+#### New API Routes
+- `GET /api/v1/executions?sessionId=:id` — list all executions for a session
+- `GET /api/v1/executions/:id` — get execution detail with snapshots + validation results
+- `POST /api/v1/executions/:id/rollback` — roll back all file changes from an execution
+- `GET /api/v1/validation/detect?projectId=:id` — detect available validation tools
+- `POST /api/v1/validation/run` — run validation pipeline on demand
+
+### 🔍 TRACEABILITY — Task Flow / Session Memory / Execution History
+
+#### Real-Time Phase Streaming
+- `chat.ts` emits `task_status` SSE events at every execution stage
+- New stream event types: `task_status`, `file_changed`, `validation_result`
+- Frontend execution store (`execution-store.ts`) wires all events to live UI state
+
+#### ExecutionTimeline Component
+- Visual step-through timeline displayed in chat panel during active execution
+- Shows current phase with animated spinner, completed steps with checkmarks
+- File count badge updates live as files are modified
+
+#### HistoryPanel Component
+- Per-session execution history with phase badge, file count, validation status
+- Detail view: per-file diffs with inline DiffViewer, validation results per tool
+- Rollback button with confirmation — shows restored file count and any errors
+
+#### New DB Tables
+- `executions` — full execution record (phase, agent, files changed, validation outcome)
+- `file_snapshots` — before/after content + unified diff per file per execution
+- `validation_results` — per-tool validation output (exit code, stdout, stderr, counts)
+
+### 🧪 VALIDATION — Post-Change Verification Pipeline
+
+#### Toolchain-Aware Detection (`services/validation.ts`)
+- Detects available tools from project config files automatically:
+  - **TypeScript**: `tsconfig.json` → `tsc --noEmit`
+  - **ESLint**: `.eslintrc.*` / `eslint.config.*` → `npm run lint` or `npx eslint`
+  - **Biome**: `biome.json` → `npx biome check`
+  - **Vitest** / **Jest**: detected from `devDependencies`
+  - **pytest**: detected from `pytest.ini` / `pyproject.toml`
+  - **Build**: from `package.json` `scripts.build`
+- Runs tools sequentially: typecheck → lint → test → build
+- Stops pipeline early on typecheck or lint hard failures
+
+#### Validation Results
+- Each tool result persisted to `validation_results` table
+- Results streamed live to frontend via SSE
+- Validation summary appended to assistant message in chat
+- `ValidationPanel` component: collapsible cards per tool, error output preview
+
+### 🖥️ UI Components Added
+
+| Component | Purpose |
+|-----------|---------|
+| `components/execution/execution-timeline.tsx` | Live phase progress bar |
+| `components/execution/history-panel.tsx` | Full execution history + rollback |
+| `components/diff/diff-viewer.tsx` | Syntax-colored unified diff table |
+| `components/diff/live-diff-panel.tsx` | Right-side panel: files changed + validation |
+| `components/validation/validation-panel.tsx` | Per-tool pass/fail cards |
+| `lib/stores/execution-store.ts` | Zustand store for all execution state |
+
+### Changed
+- `chat-store.ts` — handles new `task_status`, `file_changed`, `validation_result` stream events
+- `chat-panel.tsx` — integrates timeline bar, History/Changes toolbar buttons, side panels
+- `tools/index.ts` — `writeFile` and `editFile` now snapshot + diff before every write
+- `shared/types.ts` — added `Execution`, `FileSnapshot`, `ValidationResult`, `FileDiffSummary`, `ValidationReport` types
+
+---
+
+## [2.2.0] - 2026-03-15 — Production-Grade Full Rebuild (PR #25)
+
+> **PR #25** — Complete visual and product-facing reconstruction of the platform. New landing pages, stronger public presentation, improved workspace layout, VS Code-style file explorer, and interpretation/approval flow.
+
+### ✨ Landing & Marketing Pages
+
+- **Hero section** rebuilt: gradient text, radial glow, animated product mockup
+- **Feature grid**: 8 capabilities with icons and descriptions
+- **How-it-works**: 3-step flow section
+- **Stats section**, use-cases grid, FAQ accordion, final CTA
+- `/features` page rebuilt with rich sections and comparison table
+- `/pricing` page rebuilt: billing toggle, full feature lists, FAQ
+- `/product` page rebuilt: mission, pillars, tech stack, architecture diagram
+- `/login` page redesigned with branded header and centered layout
+- New `SiteFooter` component (4-column layout) across all public pages
+- `SiteHeader` rebuilt with mobile hamburger menu and active link states
+
+### 🖥️ Workspace Layout
+
+- **3-panel layout modes**: Chat / Split / Editor — toggled from toolbar
+- **Keyboard shortcuts**: `Ctrl+E` for editor panel, `Ctrl+\`` for terminal
+- Better loading and auth states with branded spinner
+- Panel toolbar with clear mode buttons
+
+### 📂 VS Code-Style File Explorer
+
+- New `FileExplorer` component with collapsible folder tree
+- Depth-based indentation, smooth expand/collapse with chevron animation
+- File type icons with color coding: TS=blue, JS=amber, JSON=orange, etc.
+- Special icons for `package.json`, `.env`, `Dockerfile`, `tsconfig`, etc.
+- Click-to-open files synced with Monaco editor
+- Skeleton loading, error, and empty states
+
+### 💬 Sidebar Redesign
+
+- Three-tab sidebar: **Sessions | Explorer | Projects**
+- Sessions tab: search bar + session list with navigation
+- Explorer tab: VS Code-style file tree
+- Projects tab: project list with path display, new project form, GitHub link
+- Auto-switches to Explorer tab when a project is selected
+
+### 🔒 Safety Controls (PR #24 included here)
+
+- `SessionSafetySettings` model: `readOnlyMode`, `requireApprovalForCommands`, `writableRoots`, `allowCommandPatterns`, `denyCommandPatterns`
+- Safety settings persisted per session in DB (`safety_settings` JSON column)
+- `GET/PUT /api/v1/sessions/:id/safety` endpoints for reading and updating
+- Tools enforce safety at execution time (read-only blocks all writes, writable roots restrict paths)
+- Default deny list: `rm -rf`, `sudo`, `shutdown`, `reboot`, `mkfs`, `dd if=`, `chmod -R 777 /`
+
+### 🛠️ CLI Improvements (PR #23/#24)
+
+- `martin doctor` command — environment health check (Bun version, API connectivity, API keys configured)
+- `martin sessions` command — list, view, and delete chat sessions from CLI
+- Extended API client (`cli/src/api.ts`) with session management methods
+
+### Interpretation/Approval Flow
+
+- `InterpretationPanel` component — shows parsed intent before execution
+- Detects: create, debug, refactor, review, delete, test actions
+- Shows: summary, scope, likely affected files, risks, assumptions
+- User can Approve & Execute / Refine prompt / Cancel
+
+### Added
+- `docs/REBUILD_AUDIT.md` — audit document for the rebuild scope
+
+---
+
 ## [2.0.1] - 2026-02-23 — Limpieza de código deprecado
 
 ### Removed
