@@ -14,33 +14,12 @@ export interface AuthTokens {
   token_type?: string;
 }
 
-export interface ToolCall {
-  id: string;
-  name: string;
-  arguments: Record<string, unknown>;
-}
-
-export interface ToolResult {
-  toolCallId: string;
-  result: unknown;
-  error?: string;
-}
-
 export interface ChatMessage {
   id: string;
-  // Legacy + current field names are both supported.
   chat_id: string;
-  sessionId?: string;
   role: "user" | "assistant" | "system" | "tool";
   content: string;
   created_at: string;
-  createdAt?: string;
-  toolCalls?: ToolCall[];
-  toolResults?: ToolResult[];
-  promptTokens?: number;
-  completionTokens?: number;
-  costUsd?: number;
-  model?: string;
 }
 
 export interface Chat {

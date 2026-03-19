@@ -218,6 +218,7 @@ wait_health() {
             break
         else
             if [ $attempt -lt $max_attempts ]; then
+                print_info "Waiting for API health ($attempt/$max_attempts)..."
                 sleep 2
             else
                 print_warning "API did not become reachable in time"

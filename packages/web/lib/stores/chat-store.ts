@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { api } from "@/lib/api";
 import { useModelStore } from "@/lib/stores/model-store";
-import type { Chat, ChatMessage, ToolCall, ToolResult } from "@/lib/types";
+import type { Chat, ChatMessage } from "@/lib/types";
 
 // Re-export Session as an alias for Chat
 export type Session = Chat;
@@ -50,18 +50,10 @@ interface SessionDto {
 
 interface MessageDto {
   id: string;
-  sessionId?: string;
-  chat_id?: string;
+  sessionId: string;
   role: "user" | "assistant" | "system" | "tool";
   content: string;
-  createdAt?: string;
-  created_at?: string;
-  toolCalls?: unknown;
-  toolResults?: unknown;
-  promptTokens?: number;
-  completionTokens?: number;
-  costUsd?: number;
-  model?: string;
+  createdAt: string;
 }
 
 function mapSessionToChat(session: SessionDto): Chat {
@@ -76,33 +68,12 @@ function mapSessionToChat(session: SessionDto): Chat {
 }
 
 function mapMessageToChatMessage(message: MessageDto): ChatMessage {
-  const createdAt = message.createdAt ?? message.created_at ?? new Date().toISOString();
-  const sessionId = message.sessionId ?? message.chat_id ?? "";
-  const parseJsonArray = <T,>(value: unknown): T[] => {
-    if (Array.isArray(value)) return value as T[];
-    if (typeof value !== "string" || value.trim() === "") return [];
-    try {
-      const parsed = JSON.parse(value) as unknown;
-      return Array.isArray(parsed) ? (parsed as T[]) : [];
-    } catch {
-      return [];
-    }
-  };
-
   return {
     id: message.id,
-    chat_id: sessionId,
-    sessionId,
+    chat_id: message.sessionId,
     role: message.role,
     content: message.content,
-    created_at: createdAt,
-    createdAt,
-    toolCalls: parseJsonArray<ToolCall>(message.toolCalls),
-    toolResults: parseJsonArray<ToolResult>(message.toolResults),
-    promptTokens: message.promptTokens ?? 0,
-    completionTokens: message.completionTokens ?? 0,
-    costUsd: message.costUsd ?? 0,
-    model: message.model,
+    created_at: message.createdAt,
   };
 }
 
@@ -202,16 +173,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     const optimisticUserMessage: ChatMessage = {
       id: crypto.randomUUID(),
       chat_id: state.currentSession.id,
-      sessionId: state.currentSession.id,
       role: "user",
       content,
       created_at: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      toolCalls: [],
-      toolResults: [],
-      promptTokens: 0,
-      completionTokens: 0,
-      costUsd: 0,
     };
 
     set((prev) => ({
@@ -269,16 +233,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
               const assistantMessage: ChatMessage = {
                 id: crypto.randomUUID(),
                 chat_id: state.currentSession!.id,
-                sessionId: state.currentSession!.id,
                 role: "assistant",
                 content: latestContent,
                 created_at: new Date().toISOString(),
-                createdAt: new Date().toISOString(),
-                toolCalls: [],
-                toolResults: [],
-                promptTokens: current.lastUsage?.promptTokens ?? 0,
-                completionTokens: current.lastUsage?.completionTokens ?? 0,
-                costUsd: current.lastCost,
               };
               set((prev) => ({
                 messages: [...prev.messages, assistantMessage],
@@ -300,16 +257,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const assistantError: ChatMessage = {
         id: crypto.randomUUID(),
         chat_id: state.currentSession.id,
-        sessionId: state.currentSession.id,
         role: "assistant",
         content: `Error: ${message}`,
         created_at: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        toolCalls: [],
-        toolResults: [],
-        promptTokens: 0,
-        completionTokens: 0,
-        costUsd: 0,
       };
       set((prev) => ({
         messages: [...prev.messages, assistantError],
