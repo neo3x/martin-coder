@@ -677,7 +677,7 @@ def print_success():
 ║     cd apps/web && npm run dev                               ║
 ║                                                              ║
 ║  3. Open in browser:                                         ║
-║     http://localhost:3000                                    ║
+║     http://localhost:3005                                    ║
 ║                                                              ║
 ║  Demo credentials:                                           ║
 ║     Email: demo@martin-coder.com                             ║

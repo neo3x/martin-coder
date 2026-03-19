@@ -7,6 +7,7 @@
 **AI-Powered Code Generation, Editing, and Debugging Platform**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version](https://img.shields.io/badge/version-2.3.0-blue.svg)](CHANGELOG.md)
 [![Bun 1.1+](https://img.shields.io/badge/bun-1.1+-black.svg)](https://bun.sh/)
 [![TypeScript 5.7](https://img.shields.io/badge/typescript-5.7-blue.svg)](https://www.typescriptlang.org/)
 [![Node.js 20+](https://img.shields.io/badge/node-20+-green.svg)](https://nodejs.org/)
@@ -21,20 +22,52 @@
 
 ### Overview
 
-Martin-Coder v2.0 is an AI-powered development platform built with **TypeScript**, **Bun**, and a modern monorepo architecture. It combines multiple LLM providers (Claude, OpenAI, Google, Ollama) with a full-featured IDE experience: code editor (Monaco), terminal (xterm), file explorer, and AI chat with streaming responses.
+Martin-Coder v2.3 is an AI-powered development platform built with **TypeScript**, **Bun**, and a modern monorepo architecture. It combines multiple LLM providers (Claude, OpenAI, Google, Ollama) with a full-featured IDE experience: code editor (Monaco), terminal (xterm), VS Code-style file explorer, and AI chat with streaming responses and deep execution traceability.
+
+### What's New in v2.3
+
+**Phase 2 hardening** makes MartinCoder feel safe, deliberate, and engineering-grade for real repository work:
+
+| Capability | What it does |
+|-----------|-------------|
+| **File Snapshots** | Captures before/after state of every file the agent modifies |
+| **Unified Diffs** | Shows exactly what changed, line by line, per file |
+| **Rollback** | Restore all files from any past execution with one click |
+| **Task Flow** | Real-time phase display: understanding → generating → validating → done |
+| **Execution History** | Full audit trail of every action taken in a session |
+| **Validation Pipeline** | Auto-runs lint/typecheck/tests/build after code changes |
 
 ### Key Features
 
+#### 🤖 AI & Agents
 - **Multi-LLM Support**: Anthropic Claude, OpenAI, Google Gemini, Ollama, LM Studio
-- **Modern IDE**: Monaco code editor, integrated terminal, file explorer
-- **AI Agent System**: Configurable agents with tool access for code operations
+- **Agent System**: `build` agent (full access) and `plan` agent (read-only analysis)
+- **Interpretation Flow**: Request analyzed and summarized before execution — approve, refine, or cancel
 - **LSP Integration**: Language Server Protocol for code intelligence
 - **MCP Integration**: Model Context Protocol for extended tool capabilities
+
+#### 🔒 Trust & Safety
+- **File Snapshots**: Every file write captures a full before/after snapshot automatically
+- **Rollback**: Revert any execution — files restored to exact pre-run state
+- **Safety Controls**: Per-session `readOnlyMode`, `writableRoots`, command approval, deny patterns
+- **Diff Viewer**: Line-by-line unified diff display per modified file
+- **Execution History**: Auditable record of every action, change, and validation result
+
+#### 🧪 Validation
+- **Auto-Validation**: Runs after code changes — detects and uses ESLint, TypeScript, Vitest, Jest, pytest, build scripts
+- **Toolchain Detection**: Reads project config files to choose correct commands automatically
+- **Live Results**: Validation streamed in real-time with pass/fail per tool
+- **Pipeline Order**: typecheck → lint → test → build (stops on hard failures)
+
+#### 🖥️ IDE & Workspace
+- **Monaco Editor**: Full code editor with syntax highlighting
+- **VS Code-Style Explorer**: Collapsible file tree with type icons, click-to-open
+- **Integrated Terminal**: xterm.js terminal panel
+- **3-Panel Layout**: Chat / Split / Editor modes with keyboard shortcuts
 - **JWT Authentication**: Secure role-based access with OAuth support
 - **SQLite Database**: Zero-config, no external database server needed
-- **Plugin System**: Extensible architecture
+- **CLI Tool**: Full command-line interface (`martin` command) with doctor, sessions, projects
 - **i18n Support**: English and Spanish
-- **CLI Tool**: Full command-line interface (`martin` command)
 
 ### Tech Stack
 
@@ -104,7 +137,7 @@ bun run dev
 
 # Or start individually
 bun run dev:api    # API on http://localhost:8000
-bun run dev:web    # Web on http://localhost:3000
+bun run dev:web    # Web on http://localhost:3005
 bun run dev:cli    # CLI in watch mode
 ```
 
@@ -133,7 +166,7 @@ martin.bat            # Windows
 
 | Service | URL |
 |---------|-----|
-| Web UI | http://localhost:3000 |
+| Web UI | http://localhost:3005 |
 | API | http://localhost:8000 |
 | API Health | http://localhost:8000/health |
 | OpenAPI Spec | http://localhost:8000/openapi.json |
@@ -173,8 +206,8 @@ ANTHROPIC_API_KEY=sk-ant-...
 # Server settings
 PORT=8000
 NODE_ENV=production
-FRONTEND_URL=http://your-domain:3000
-CORS_ORIGINS=http://your-domain:3000
+FRONTEND_URL=http://your-domain:3005
+CORS_ORIGINS=http://your-domain:3005
 
 # Database (SQLite - stored in Docker volume)
 DATABASE_PATH=/data/martin-coder.db
@@ -207,7 +240,7 @@ curl http://localhost:8000/health
 curl -s http://localhost:8000/health | jq .
 
 # Check web UI
-curl -s -o /dev/null -w "%{http_code}" http://localhost:3000
+curl -s -o /dev/null -w "%{http_code}" http://localhost:3005
 
 # View logs
 docker compose logs -f
@@ -236,7 +269,7 @@ server {
 
     # Web UI
     location / {
-        proxy_pass http://localhost:3000;
+        proxy_pass http://localhost:3005;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -293,8 +326,8 @@ docker compose -f docker-compose.dev.yml up -d
 | `PORT` | No | `8000` | API server port |
 | `NODE_ENV` | No | `development` | Environment mode |
 | `DATABASE_PATH` | No | `./data/martin-coder.db` | SQLite database path |
-| `FRONTEND_URL` | No | `http://localhost:3000` | Frontend URL for CORS |
-| `CORS_ORIGINS` | No | `http://localhost:3000` | Allowed CORS origins |
+| `FRONTEND_URL` | No | `http://localhost:3005` | Frontend URL for CORS |
+| `CORS_ORIGINS` | No | `http://localhost:3005` | Allowed CORS origins |
 | `ANTHROPIC_API_KEY` | No* | - | Anthropic Claude API key |
 | `OPENAI_API_KEY` | No* | - | OpenAI API key |
 | `GOOGLE_GENERATIVE_AI_API_KEY` | No* | - | Google Gemini API key |
@@ -370,6 +403,7 @@ Both `martin.sh` (Linux/macOS) and `martin.bat` (Windows) support identical comm
 |--------|------|-------------|
 | GET/POST | `/sessions` | List/create chat sessions |
 | POST | `/sessions/{id}/messages` | Send message (SSE streaming) |
+| GET/PUT | `/sessions/{id}/safety` | Read/update session safety settings |
 | GET/POST | `/projects` | List/create projects |
 | GET | `/ai/providers` | List available AI providers |
 | GET | `/ai/agents` | List available agents |
@@ -379,6 +413,26 @@ Both `martin.sh` (Linux/macOS) and `martin.bat` (Windows) support identical comm
 | GET/POST | `/mcp/servers` | List/add MCP servers |
 | GET | `/users` | User management |
 | GET | `/plugins` | Plugin management |
+| GET | `/executions` | List executions for a session (`?sessionId=`) |
+| GET | `/executions/{id}` | Get execution detail with file diffs and validation |
+| POST | `/executions/{id}/rollback` | Roll back all file changes from an execution |
+| GET | `/validation/detect` | Detect available validation tools for a project |
+| POST | `/validation/run` | Run validation pipeline on demand |
+
+### SSE Stream Event Types
+
+The `/sessions/{id}/messages` endpoint streams Server-Sent Events. New event types in v2.3:
+
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `text` | `{ content }` | Assistant text delta |
+| `tool_call` | `{ toolName, toolArgs }` | Tool invocation |
+| `tool_result` | `{ toolName, toolResult }` | Tool execution result |
+| `task_status` | `{ phase, statusMessage, executionId }` | Execution phase change |
+| `file_changed` | `{ snapshotId, filePath, changeType, linesAdded, linesRemoved, diffText }` | File modified |
+| `validation_result` | `{ toolType, passed, errorCount, ... }` | Validation tool result |
+| `finish` | `{ usage, cost }` | Stream complete |
+| `error` | `{ error }` | Error occurred |
 
 ---
 
@@ -392,25 +446,42 @@ martin-coder/
 │   │       ├── index.ts     # Server entry point
 │   │       ├── db/          # SQLite + Drizzle schema
 │   │       ├── routes/      # API route handlers
+│   │       │   ├── sessions.ts      # Chat sessions + safety
+│   │       │   ├── executions.ts    # Execution history + rollback ✨
+│   │       │   └── validation.ts    # Validation pipeline ✨
 │   │       ├── services/    # Business logic
+│   │       │   ├── chat.ts          # Streaming + phase events
+│   │       │   ├── diff.ts          # Unified diff engine ✨
+│   │       │   ├── execution.ts     # Lifecycle + snapshots ✨
+│   │       │   ├── validation.ts    # Toolchain detection ✨
+│   │       │   └── safety.ts        # Permission model
 │   │       ├── middleware/   # Auth middleware (JWT)
-│   │       ├── agents/      # AI agent definitions
+│   │       ├── agents/      # AI agent definitions (build/plan)
 │   │       ├── providers/   # AI provider factory
-│   │       ├── tools/       # Agent tool definitions
+│   │       ├── tools/       # Agent tool definitions (snapshot-aware)
 │   │       ├── lsp/         # Language Server Protocol
 │   │       └── mcp/         # Model Context Protocol
 │   ├── web/                 # Next.js 14 Frontend
 │   │   ├── app/             # App Router pages
 │   │   ├── components/      # React components
-│   │   │   ├── chat/        # AI chat panel
+│   │   │   ├── chat/        # AI chat panel + interpretation flow
+│   │   │   ├── diff/        # Diff viewer + live diff panel ✨
+│   │   │   ├── execution/   # Timeline + history panel ✨
+│   │   │   ├── validation/  # Validation results panel ✨
 │   │   │   ├── editor/      # Monaco editor
+│   │   │   ├── explorer/    # VS Code-style file explorer
 │   │   │   ├── terminal/    # xterm terminal
-│   │   │   ├── drive/       # File explorer
 │   │   │   └── layout/      # Header, sidebar
-│   │   ├── lib/             # Stores, API clients, types
+│   │   ├── lib/
+│   │   │   ├── stores/      # Zustand state
+│   │   │   │   ├── chat-store.ts
+│   │   │   │   ├── execution-store.ts  # ✨ Live execution state
+│   │   │   │   ├── project-store.ts
+│   │   │   │   └── model-store.ts
+│   │   │   └── api.ts       # API + SSE client
 │   │   └── messages/        # i18n (en, es)
 │   ├── cli/                 # CLI tool (martin command)
-│   │   └── src/commands/    # auth, chat, projects, sessions
+│   │   └── src/commands/    # auth, chat, projects, sessions, doctor
 │   └── shared/              # Shared types & constants
 │       └── src/
 │           ├── types.ts     # All shared TypeScript types
@@ -425,6 +496,7 @@ martin-coder/
 ├── package.json             # Workspace root (Bun)
 └── .env.example             # Environment template
 ```
+> ✨ = Added in v2.3
 
 ---
 
@@ -495,20 +567,52 @@ MIT License - see [LICENSE](LICENSE)
 
 ### Descripción General
 
-Martin-Coder v2.0 es una plataforma de desarrollo impulsada por IA construida con **TypeScript**, **Bun** y una arquitectura monorepo moderna. Combina múltiples proveedores de LLM (Claude, OpenAI, Google, Ollama) con una experiencia IDE completa: editor de código (Monaco), terminal (xterm), explorador de archivos y chat con IA con respuestas en streaming.
+Martin-Coder v2.3 es una plataforma de desarrollo impulsada por IA construida con **TypeScript**, **Bun** y una arquitectura monorepo moderna. Combina múltiples proveedores de LLM (Claude, OpenAI, Google, Ollama) con una experiencia IDE completa: editor de código (Monaco), terminal (xterm), explorador de archivos estilo VS Code y chat con IA con streaming de respuestas y trazabilidad completa de ejecución.
+
+### Novedades en v2.3
+
+El **hardening de Fase 2** hace que MartinCoder se sienta seguro, deliberado y de nivel ingenieril para trabajo real con repositorios:
+
+| Capacidad | Descripción |
+|-----------|-------------|
+| **Snapshots de Archivos** | Captura el estado antes/después de cada archivo que el agente modifica |
+| **Diffs Unificados** | Muestra exactamente qué cambió, línea por línea, por archivo |
+| **Rollback** | Restaura todos los archivos de cualquier ejecución pasada con un clic |
+| **Flujo de Tareas** | Fase en tiempo real: entendiendo → generando → validando → listo |
+| **Historial de Ejecuciones** | Registro de auditoría completo de cada acción en una sesión |
+| **Pipeline de Validación** | Ejecuta lint/typecheck/tests/build automáticamente tras cambios de código |
 
 ### Características Principales
 
+#### 🤖 IA y Agentes
 - **Soporte Multi-LLM**: Anthropic Claude, OpenAI, Google Gemini, Ollama, LM Studio
-- **IDE Moderno**: Editor Monaco, terminal integrada, explorador de archivos
-- **Sistema de Agentes IA**: Agentes configurables con acceso a herramientas
+- **Sistema de Agentes**: Agente `build` (acceso completo) y agente `plan` (análisis solo lectura)
+- **Flujo de Interpretación**: La solicitud es analizada y resumida antes de ejecutarse — aprobar, refinar o cancelar
 - **Integración LSP**: Language Server Protocol para inteligencia de código
 - **Integración MCP**: Model Context Protocol para capacidades extendidas
+
+#### 🔒 Confianza y Seguridad
+- **Snapshots de Archivos**: Cada escritura captura un snapshot completo antes/después automáticamente
+- **Rollback**: Revierte cualquier ejecución — archivos restaurados al estado exacto pre-ejecución
+- **Controles de Seguridad**: Por sesión: `readOnlyMode`, `writableRoots`, aprobación de comandos, patrones de denegación
+- **Visor de Diffs**: Visualización unificada línea por línea por archivo modificado
+- **Historial de Ejecuciones**: Registro auditable de cada acción, cambio y resultado de validación
+
+#### 🧪 Validación
+- **Validación Automática**: Se ejecuta después de cambios de código — detecta y usa ESLint, TypeScript, Vitest, Jest, pytest, scripts de build
+- **Detección de Toolchain**: Lee archivos de configuración del proyecto para elegir los comandos correctos automáticamente
+- **Resultados en Tiempo Real**: Validación transmitida en vivo con éxito/fallo por herramienta
+- **Orden del Pipeline**: typecheck → lint → test → build (se detiene en fallos graves)
+
+#### 🖥️ IDE y Workspace
+- **Editor Monaco**: Editor de código completo con resaltado de sintaxis
+- **Explorador Estilo VS Code**: Árbol de archivos colapsable con iconos por tipo, clic para abrir
+- **Terminal Integrada**: Panel de terminal xterm.js
+- **Layout de 3 Paneles**: Modos Chat / Split / Editor con atajos de teclado
 - **Autenticación JWT**: Acceso seguro basado en roles con soporte OAuth
 - **Base de Datos SQLite**: Sin configuración, sin servidor externo necesario
-- **Sistema de Plugins**: Arquitectura extensible
+- **Herramienta CLI**: Interfaz de línea de comandos completa (comando `martin`) con doctor, sessions, projects
 - **Soporte i18n**: Inglés y Español
-- **Herramienta CLI**: Interfaz de línea de comandos completa (comando `martin`)
 
 ### Inicio Rápido
 
@@ -562,8 +666,8 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 # Configuración del servidor
 NODE_ENV=production
-FRONTEND_URL=http://tu-dominio:3000
-CORS_ORIGINS=http://tu-dominio:3000
+FRONTEND_URL=http://tu-dominio:3005
+CORS_ORIGINS=http://tu-dominio:3005
 
 # Usuario admin inicial
 FIRST_ADMIN_EMAIL=admin@tu-dominio.com
@@ -633,6 +737,17 @@ docker compose logs -f
 | Ollama | Cualquier modelo cargado | Local |
 | LM Studio | Cualquier modelo cargado | Local |
 
+### Nuevos Endpoints API (v2.3)
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/api/v1/executions` | Listar ejecuciones de una sesión (`?sessionId=`) |
+| GET | `/api/v1/executions/:id` | Detalle con diffs y validaciones |
+| POST | `/api/v1/executions/:id/rollback` | Revertir todos los cambios de una ejecución |
+| GET/PUT | `/api/v1/sessions/:id/safety` | Leer/actualizar controles de seguridad |
+| GET | `/api/v1/validation/detect` | Detectar herramientas disponibles en proyecto |
+| POST | `/api/v1/validation/run` | Ejecutar pipeline de validación manualmente |
+
 ### Licencia
 
 Licencia MIT - ver [LICENSE](LICENSE)
@@ -658,4 +773,4 @@ Contributions are welcome! Open an issue or submit a pull request on GitHub.
 
 ---
 
-*Martin-Coder v2.0 - 2026*
+*Martin-Coder v2.3 - 2026*

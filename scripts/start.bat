@@ -107,7 +107,7 @@ if "%MODE%"=="prod" (
 echo %YELLOW%Waiting for frontend to start...%NC%
 timeout /t 5 /nobreak >nul
 
-echo %GREEN%  Frontend started at http://localhost:3000%NC%
+echo %GREEN%  Frontend started at http://localhost:3005%NC%
 
 echo.
 echo %GREEN%========================================================================%NC%
@@ -115,7 +115,7 @@ echo %GREEN%                                                                    
 echo %GREEN%                    MARTIN-CODER RUNNING                                %NC%
 echo %GREEN%                                                                        %NC%
 echo %GREEN%  Mode:           %MODE%                                                %NC%
-echo %GREEN%  Web Interface:  http://localhost:3000                                 %NC%
+echo %GREEN%  Web Interface:  http://localhost:3005                                 %NC%
 echo %GREEN%  API:            http://localhost:8000                                 %NC%
 echo %GREEN%  API Docs:       http://localhost:8000/docs                            %NC%
 echo %GREEN%                                                                        %NC%
@@ -127,7 +127,7 @@ echo.
 REM Open browser
 choice /c YN /m "Open browser now"
 if errorlevel 2 goto :skip_browser
-start http://localhost:3000
+start http://localhost:3005
 :skip_browser
 
 echo.

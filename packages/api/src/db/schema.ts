@@ -80,6 +80,59 @@ export const plugins = sqliteTable('plugins', {
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 })
 
+// ─── Execution tracking tables ────────────────────────────────────────────────
+
+export const executions = sqliteTable('executions', {
+  id: text('id').primaryKey(),
+  sessionId: text('session_id').notNull().references(() => sessions.id),
+  userId: text('user_id').notNull().references(() => users.id),
+  prompt: text('prompt').notNull(),
+  // Phase: understanding | scanning | reading | building | waiting_approval |
+  //        generating | review_ready | applying | validating | completed | failed | rolled_back
+  phase: text('phase').notNull().default('understanding'),
+  agentName: text('agent_name').notNull().default('build'),
+  filesChanged: integer('files_changed').notNull().default(0),
+  validationPassed: integer('validation_passed', { mode: 'boolean' }),
+  validationSummary: text('validation_summary'),
+  errorMessage: text('error_message'),
+  startedAt: text('started_at').notNull().default(sql`(datetime('now'))`),
+  completedAt: text('completed_at'),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+})
+
+export const fileSnapshots = sqliteTable('file_snapshots', {
+  id: text('id').primaryKey(),
+  executionId: text('execution_id').notNull().references(() => executions.id),
+  sessionId: text('session_id').notNull().references(() => sessions.id),
+  filePath: text('file_path').notNull(),
+  // 'created' | 'modified' | 'deleted'
+  changeType: text('change_type').notNull().default('modified'),
+  contentBefore: text('content_before'),
+  contentAfter: text('content_after'),
+  diffText: text('diff_text'),
+  linesAdded: integer('lines_added').notNull().default(0),
+  linesRemoved: integer('lines_removed').notNull().default(0),
+  isRestored: integer('is_restored', { mode: 'boolean' }).notNull().default(false),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+})
+
+export const validationResults = sqliteTable('validation_results', {
+  id: text('id').primaryKey(),
+  executionId: text('execution_id').notNull().references(() => executions.id),
+  sessionId: text('session_id').notNull().references(() => sessions.id),
+  // 'lint' | 'typecheck' | 'test' | 'build'
+  toolType: text('tool_type').notNull(),
+  toolCommand: text('tool_command').notNull(),
+  passed: integer('passed', { mode: 'boolean' }).notNull().default(false),
+  exitCode: integer('exit_code').notNull().default(0),
+  stdout: text('stdout'),
+  stderr: text('stderr'),
+  errorCount: integer('error_count').notNull().default(0),
+  warningCount: integer('warning_count').notNull().default(0),
+  durationMs: integer('duration_ms').notNull().default(0),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+})
+
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
 export type Project = typeof projects.$inferSelect
@@ -90,3 +143,9 @@ export type Message = typeof messages.$inferSelect
 export type NewMessage = typeof messages.$inferInsert
 export type Plugin = typeof plugins.$inferSelect
 export type NewPlugin = typeof plugins.$inferInsert
+export type Execution = typeof executions.$inferSelect
+export type NewExecution = typeof executions.$inferInsert
+export type FileSnapshot = typeof fileSnapshots.$inferSelect
+export type NewFileSnapshot = typeof fileSnapshots.$inferInsert
+export type ValidationResult = typeof validationResults.$inferSelect
+export type NewValidationResult = typeof validationResults.$inferInsert

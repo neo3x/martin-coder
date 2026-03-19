@@ -22,7 +22,7 @@ Guía completa para usar Martin-Coder en la generación de código asistida por 
 
 ### Primer Inicio de Sesión
 
-1. Navega a `http://localhost:3000` en tu navegador
+1. Navega a `http://localhost:3005` en tu navegador
 2. Haz clic en "Registrarse" para crear una nueva cuenta
 3. Ingresa tu email, nombre de usuario y contraseña
 4. Serás redirigido al panel principal

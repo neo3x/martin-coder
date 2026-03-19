@@ -228,7 +228,7 @@ wait_health() {
 
     # Web health check
     local web_status
-    web_status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 2>/dev/null || echo "000")
+    web_status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3005 2>/dev/null || echo "000")
     if [ "$web_status" != "000" ]; then
         print_success "Web health check passed"
     else
@@ -257,7 +257,7 @@ start_services() {
 
     echo ""
     print_success "Martin-Coder is up"
-    echo -e "  Web UI:      ${BLUE}http://localhost:3000${NC}"
+    echo -e "  Web UI:      ${BLUE}http://localhost:3005${NC}"
     echo -e "  API:         ${BLUE}http://localhost:8000${NC}"
     echo -e "  API Health:  ${BLUE}http://localhost:8000/health${NC}"
     echo -e "  OpenAPI:     ${BLUE}http://localhost:8000/openapi.json${NC}"
@@ -436,7 +436,7 @@ dev_mode() {
             ;;
         *)
             print_info "Starting all services in dev mode (turbo)..."
-            print_info "API: http://localhost:8000  |  Web: http://localhost:3000"
+            print_info "API: http://localhost:8000  |  Web: http://localhost:3005"
             bun run dev
             ;;
     esac
@@ -559,7 +559,7 @@ show_info() {
     echo -e "  Runtime:     ${GREEN}Bun${NC}"
     echo -e "  Language:    ${GREEN}TypeScript 5.7${NC}"
     echo -e "  API:         ${GREEN}Hono 4.6 (port 8000)${NC}"
-    echo -e "  Frontend:    ${GREEN}Next.js 14 + React 18 (port 3000)${NC}"
+    echo -e "  Frontend:    ${GREEN}Next.js 14 + React 18 (port 3005)${NC}"
     echo -e "  Database:    ${GREEN}SQLite + Drizzle ORM${NC}"
     echo -e "  AI SDKs:     ${GREEN}Vercel AI SDK (Anthropic, OpenAI, Google, Ollama)${NC}"
     echo -e "  Build:       ${GREEN}Turbo 2.5${NC}"
@@ -580,7 +580,7 @@ show_info() {
     echo "  - Plugin system"
     echo ""
     echo -e "${CYAN}URLs:${NC}"
-    echo -e "  Web UI:      ${BLUE}http://localhost:3000${NC}"
+    echo -e "  Web UI:      ${BLUE}http://localhost:3005${NC}"
     echo -e "  API:         ${BLUE}http://localhost:8000${NC}"
     echo -e "  API Health:  ${BLUE}http://localhost:8000/health${NC}"
     echo -e "  OpenAPI:     ${BLUE}http://localhost:8000/openapi.json${NC}"
@@ -622,7 +622,7 @@ show_help() {
     echo ""
     echo -e "${CYAN}Stack:${NC}  Bun + Hono (API) / Next.js (Web) / SQLite (DB)"
     echo ""
-    echo -e "Web UI:      ${BLUE}http://localhost:3000${NC}"
+    echo -e "Web UI:      ${BLUE}http://localhost:3005${NC}"
     echo -e "API:         ${BLUE}http://localhost:8000${NC}"
     echo -e "API Health:  ${BLUE}http://localhost:8000/health${NC}"
     echo -e "OpenAPI:     ${BLUE}http://localhost:8000/openapi.json${NC}"

@@ -22,7 +22,7 @@ Complete guide to using Martin-Coder for AI-assisted code generation.
 
 ### First Login
 
-1. Navigate to `http://localhost:3000` in your browser
+1. Navigate to `http://localhost:3005` in your browser
 2. Click "Register" to create a new account
 3. Enter your email, username, and password
 4. You'll be redirected to the dashboard

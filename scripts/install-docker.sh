@@ -84,7 +84,7 @@ echo -e "To view logs:"
 echo -e "  ${BLUE}docker-compose -f $COMPOSE_FILE logs -f${NC}"
 echo ""
 echo -e "Services will be available at:"
-echo -e "  Web UI: ${BLUE}http://localhost:3000${NC}"
+echo -e "  Web UI: ${BLUE}http://localhost:3005${NC}"
 echo -e "  API:    ${BLUE}http://localhost:8000${NC}"
 echo -e "  API Docs: ${BLUE}http://localhost:8000/docs${NC}"
 if [ "$COMPOSE_FILE" == "docker-compose.dev.yml" ]; then

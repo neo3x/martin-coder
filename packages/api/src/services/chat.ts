@@ -4,14 +4,24 @@ import { getAgent } from '../agents/index.js'
 import { getToolsForAgent, setToolExecutionContext, clearToolExecutionContext } from '../tools/index.js'
 import { getSession, addMessage, shouldAutoCompact, autoCompact } from './session.js'
 import { db } from '../db/index.js'
-import { sessions, messages } from '../db/schema.js'
+import { sessions, projects } from '../db/schema.js'
 import { eq } from 'drizzle-orm'
-import { nanoid } from 'nanoid'
 import type { Message } from '../db/schema.js'
 import { parseSessionSafetySettings } from './safety.js'
+import {
+  createExecution,
+  updateExecutionPhase,
+  setActiveExecution,
+  saveValidationResults,
+  type ExecutionPhase,
+} from './execution.js'
+import {
+  runValidationPipeline,
+  formatValidationForChat,
+} from './validation.js'
 
 export interface StreamChunk {
-  type: 'text' | 'tool_call' | 'tool_result' | 'finish' | 'error'
+  type: 'text' | 'tool_call' | 'tool_result' | 'finish' | 'error' | 'task_status' | 'file_changed' | 'validation_result'
   content?: string
   toolName?: string
   toolArgs?: Record<string, unknown>
@@ -23,6 +33,37 @@ export interface StreamChunk {
     cost: number
   }
   error?: string
+  // task_status fields
+  phase?: ExecutionPhase
+  statusMessage?: string
+  executionId?: string
+  // file_changed fields
+  fileChange?: {
+    snapshotId: string
+    filePath: string
+    changeType: 'created' | 'modified' | 'deleted'
+    linesAdded: number
+    linesRemoved: number
+    diffText: string
+  }
+  // validation_result fields
+  validation?: {
+    toolType: string
+    toolCommand: string
+    passed: boolean
+    errorCount: number
+    warningCount: number
+    stdout: string
+    stderr: string
+    durationMs: number
+  }
+  validationSummary?: {
+    allPassed: boolean
+    totalErrors: number
+    totalWarnings: number
+    toolsRun: number
+    summary: string
+  }
 }
 
 function dbMessageToCoreMessage(msg: Message): CoreMessage {
@@ -41,7 +82,7 @@ export async function streamMessage(
   agentName?: string,
   onChunk?: (chunk: StreamChunk) => void,
   userApiKey?: string
-): Promise<{ assistantMessage: string; usage: StreamChunk['usage'] }> {
+): Promise<{ assistantMessage: string; usage: StreamChunk['usage']; executionId?: string }> {
   const sessionData = await getSession(sessionId)
   if (!sessionData) {
     throw new Error(`Session not found: ${sessionId}`)
@@ -57,6 +98,26 @@ export async function streamMessage(
     denyCommandPatterns: safetySettings.denyCommandPatterns,
   }
 
+  // Create execution record for traceability
+  const executionId = await createExecution(
+    sessionId,
+    sessionData.userId,
+    userMessage,
+    agentName || 'build'
+  )
+
+  const emitPhase = async (phase: ExecutionPhase, message: string) => {
+    await updateExecutionPhase(executionId, phase)
+    onChunk?.({
+      type: 'task_status',
+      phase,
+      statusMessage: message,
+      executionId,
+    })
+  }
+
+  await emitPhase('understanding', 'Understanding your request…')
+
   // Check if we need to auto-compact
   const needsCompact = await shouldAutoCompact(sessionId, model)
   if (needsCompact) {
@@ -64,6 +125,8 @@ export async function streamMessage(
     await autoCompact(sessionId, provider, model, userApiKey)
     onChunk?.({ type: 'text', content: '[Context auto-compacted to save space]\n\n' })
   }
+
+  await emitPhase('scanning', 'Scanning session context…')
 
   // Save user message
   await addMessage(sessionId, {
@@ -84,6 +147,8 @@ export async function streamMessage(
   if (agent) {
     coreMessages.push({ role: 'system' as const, content: agent.systemPrompt })
   }
+
+  await emitPhase('reading', 'Reading relevant context…')
 
   // Re-fetch messages after potential compaction
   const freshSession = await getSession(sessionId)
@@ -108,12 +173,40 @@ export async function streamMessage(
 
   const llmModel = getProviderModel(provider, model, userApiKey)
 
+  await emitPhase('generating', 'Generating response…')
+
   let fullText = ''
   let promptTokens = 0
   let completionTokens = 0
 
+  const fileChanges: Array<{
+    snapshotId: string
+    filePath: string
+    changeType: 'created' | 'modified' | 'deleted'
+    linesAdded: number
+    linesRemoved: number
+    diffText: string
+  }> = []
+
   try {
     setToolExecutionContext(toolContext)
+
+    // Set active execution context so tools can record file changes
+    setActiveExecution({
+      executionId,
+      sessionId,
+      userId: sessionData.userId,
+      onPhaseChange: async (phase, message) => {
+        await emitPhase(phase, message)
+      },
+      onFileChange: (snapshot) => {
+        fileChanges.push(snapshot)
+        onChunk?.({
+          type: 'file_changed',
+          fileChange: snapshot,
+        })
+      },
+    })
 
     const stream = streamText({
       model: llmModel,
@@ -143,7 +236,6 @@ export async function streamMessage(
 
     // Consume the stream
     for await (const chunk of stream.textStream) {
-      // Already handled in onChunk
       void chunk
     }
 
@@ -160,12 +252,77 @@ export async function streamMessage(
       cost,
     }
 
+    // Run validation if files were changed and we have a project
+    let validationText = ''
+    if (fileChanges.length > 0 && sessionData.projectId) {
+      await emitPhase('validating', `Validating ${fileChanges.length} changed file${fileChanges.length !== 1 ? 's' : ''}…`)
+
+      // Get project path
+      const project = await db.select()
+        .from(projects)
+        .where(eq(projects.id, sessionData.projectId))
+        .get()
+
+      if (project?.localPath) {
+        const report = await runValidationPipeline(project.localPath)
+
+        // Save validation results to DB
+        await saveValidationResults(
+          executionId,
+          sessionId,
+          report.toolsRun.map(r => ({
+            toolType: r.toolType,
+            toolCommand: r.toolCommand,
+            passed: r.passed,
+            exitCode: r.exitCode,
+            stdout: r.stdout,
+            stderr: r.stderr,
+            errorCount: r.errorCount,
+            warningCount: r.warningCount,
+            durationMs: r.durationMs,
+          }))
+        )
+
+        // Stream each validation result
+        for (const result of report.toolsRun) {
+          onChunk?.({
+            type: 'validation_result',
+            validation: result,
+          })
+        }
+
+        // Stream summary
+        onChunk?.({
+          type: 'validation_result',
+          validationSummary: {
+            allPassed: report.allPassed,
+            totalErrors: report.totalErrors,
+            totalWarnings: report.totalWarnings,
+            toolsRun: report.toolsRun.length,
+            summary: report.summary,
+          },
+        })
+
+        validationText = '\n\n---\n' + formatValidationForChat(report)
+
+        await updateExecutionPhase(executionId, report.allPassed ? 'completed' : 'completed', {
+          validationPassed: report.allPassed,
+          validationSummary: report.summary,
+        })
+      }
+    }
+
+    await emitPhase('completed', fileChanges.length > 0
+      ? `Completed — ${fileChanges.length} file${fileChanges.length !== 1 ? 's' : ''} modified`
+      : 'Completed')
+
     onChunk?.({ type: 'finish', usage: usageInfo })
 
-    // Save assistant message
+    // Save assistant message (append validation summary if ran)
+    const finalContent = fullText + validationText
     await addMessage(sessionId, {
       role: 'assistant',
-      content: fullText,
+      content: finalContent,
       promptTokens,
       completionTokens,
       costUsd: cost,
@@ -181,13 +338,15 @@ export async function streamMessage(
         .where(eq(sessions.id, sessionId))
     }
 
-    return { assistantMessage: fullText, usage: usageInfo }
+    return { assistantMessage: finalContent, usage: usageInfo, executionId }
   } catch (err) {
     const errorMessage = String(err)
+    await updateExecutionPhase(executionId, 'failed', { errorMessage })
     onChunk?.({ type: 'error', error: errorMessage })
     throw err
   } finally {
     clearToolExecutionContext()
+    setActiveExecution(null)
   }
 }
 

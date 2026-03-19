@@ -1,8 +1,10 @@
 import { tool } from 'ai'
 import { z } from 'zod'
 import { readFileSync, writeFileSync, readdirSync, statSync, existsSync, mkdirSync } from 'fs'
-import { join, resolve, relative, dirname } from 'path'
+import { join, resolve, dirname } from 'path'
 import { execSync } from 'child_process'
+import { getActiveExecution, recordFileChange, readFileForSnapshot } from '../services/execution.js'
+import { generateDiff } from '../services/diff.js'
 
 // Security: blocked bash patterns
 const BLOCKED_BASH_PATTERNS = [
@@ -258,12 +260,39 @@ export const writeFileTool = tool({
       assertWriteAllowed(validPath)
       const dir = dirname(validPath)
 
+      // Snapshot before writing
+      const contentBefore = readFileForSnapshot(validPath)
+
       if (!existsSync(dir)) {
         mkdirSync(dir, { recursive: true })
       }
 
       writeFileSync(validPath, content, 'utf-8')
       const lines = content.split('\n').length
+
+      // Record change in active execution + notify with diff
+      const execution = getActiveExecution()
+      if (execution) {
+        const snapshotId = await recordFileChange(
+          execution.executionId,
+          execution.sessionId,
+          validPath,
+          contentBefore,
+          content
+        )
+        if (execution.onFileChange) {
+          // generateDiff is imported at top of file
+          const diff = generateDiff(validPath, contentBefore, content)
+          execution.onFileChange({
+            snapshotId,
+            filePath: validPath,
+            changeType: contentBefore === null ? 'created' : 'modified',
+            linesAdded: diff.linesAdded,
+            linesRemoved: diff.linesRemoved,
+            diffText: diff.unifiedText,
+          })
+        }
+      }
 
       console.log(`[Tool] writeFile: ${validPath} (${lines} lines)`)
       return { success: true, path: validPath, lines }
@@ -290,14 +319,38 @@ export const editFileTool = tool({
         return { error: `File not found: ${path}` }
       }
 
-      const content = readFileSync(validPath, 'utf-8')
+      const contentBefore = readFileSync(validPath, 'utf-8')
 
-      if (!content.includes(oldStr)) {
+      if (!contentBefore.includes(oldStr)) {
         return { error: `String not found in file: ${oldStr.slice(0, 50)}...` }
       }
 
-      const newContent = content.replace(oldStr, newStr)
+      const newContent = contentBefore.replace(oldStr, newStr)
       writeFileSync(validPath, newContent, 'utf-8')
+
+      // Record change in active execution + notify with diff
+      const execution = getActiveExecution()
+      if (execution) {
+        const snapshotId = await recordFileChange(
+          execution.executionId,
+          execution.sessionId,
+          validPath,
+          contentBefore,
+          newContent
+        )
+        if (execution.onFileChange) {
+          // generateDiff is imported at top of file
+          const diff = generateDiff(validPath, contentBefore, newContent)
+          execution.onFileChange({
+            snapshotId,
+            filePath: validPath,
+            changeType: 'modified',
+            linesAdded: diff.linesAdded,
+            linesRemoved: diff.linesRemoved,
+            diffText: diff.unifiedText,
+          })
+        }
+      }
 
       console.log(`[Tool] editFile: ${validPath}`)
       return { success: true, path: validPath }

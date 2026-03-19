@@ -14,6 +14,8 @@ import { lspRoutes } from './routes/lsp.js'
 import { mcpRoutes } from './routes/mcp.js'
 import { pluginsRoutes } from './routes/plugins.js'
 import { usersRoutes } from './routes/users.js'
+import { executionsRoutes } from './routes/executions.js'
+import { validationRoutes } from './routes/validation.js'
 
 // Run database migrations on startup
 runMigrations()
@@ -22,7 +24,7 @@ const app = new Hono()
 
 // Global middleware
 app.use('*', cors({
-  origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000', 'http://localhost:5173'],
+  origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3005', 'http://localhost:5173'],
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization', 'Accept'],
   exposeHeaders: ['Content-Length', 'X-Request-Id'],
@@ -179,6 +181,8 @@ api.route('/lsp', lspRoutes)
 api.route('/mcp', mcpRoutes)
 api.route('/plugins', pluginsRoutes)
 api.route('/users', usersRoutes)
+api.route('/executions', executionsRoutes)
+api.route('/validation', validationRoutes)
 
 app.route('/api/v1', api)
 
