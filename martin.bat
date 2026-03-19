@@ -280,7 +280,6 @@ if "!API_STATUS!"=="200" (
     call :print_warning "API reachable but degraded (/health returned 503)"
 ) else (
     if !ATTEMPT! lss !MAX_ATTEMPTS! (
-        call :print_info "Waiting for API health (!ATTEMPT!/!MAX_ATTEMPTS!)..."
         timeout /t 2 /nobreak >nul
         goto :health_loop
     )
